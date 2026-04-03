@@ -28,7 +28,10 @@ def _read_json(path: Path) -> Any:
 
 def _norm(s: str) -> str:
   s = (s or "").strip().lower()
-  s = re.sub(r"\s+", " ", s)
+  # Normalize punctuation (commas, dots, etc.) so area matching works for
+  # inputs like "Hyderabad, Telangana" vs "Hyderabad Telangana".
+  s = re.sub(r"[^a-z0-9]+", " ", s)
+  s = re.sub(r"\s+", " ", s).strip()
   return s
 
 
@@ -37,9 +40,12 @@ def _match_area(area_input: str, rules: Dict[str, Any]) -> Optional[Dict[str, An
   if not q:
     return None
   for a in rules.get("areas", []):
-    aliases = [_norm(x) for x in a.get("aliases", [])]
-    if any(alias and (q == alias or q in alias or alias in q) for alias in aliases):
-      return a
+    for alias in a.get("aliases", []):
+      al = _norm(alias)
+      if not al:
+        continue
+      if q == al or q in al or al in q:
+        return a
   return None
 
 
@@ -47,14 +53,16 @@ def _bin_key_from_category(bin_category: str) -> str:
   b = _norm(bin_category)
   if "recycl" in b:
     return "recycling"
-  if "compost" in b or "organic" in b or "wet" in b:
+  if "compost" in b or "organics" in b or "organic" in b or "wet" in b:
     return "organics"
   if "sanitary" in b:
     return "sanitary"
-  if "e-waste" in b or "ewaste" in b or "electronics" in b:
+  if "e waste" in b or "ewaste" in b or "electronics" in b or "electronic" in b:
     return "ewaste"
   if "hazard" in b or "chemical" in b or "battery" in b:
     return "hazardous"
+  if "general" in b or "garbage" in b or "residual" in b or "landfill" in b:
+    return "general"
   return "general"
 
 
@@ -155,6 +163,60 @@ def _anthropic_call(query: str, area_name: Optional[str], area_bin_colors: Optio
   return parsed, None
 
 
+def _heuristic_sort(query: str) -> Dict[str, str]:
+  """
+  Keyword fallback when the LLM is unavailable.
+  This keeps the UI functional and still returns correct *area bin colors*.
+  """
+  q = _norm(query)
+
+  # Electronics
+  if any(k in q for k in ["phone", "laptop", "computer", "electronics", "tablet", "charger", "e waste", "ewaste"]):
+    return {
+      "bin": "E-Waste",
+      "icon": "📱",
+      "tip": "Take electronics to an e-waste drop-off or manufacturer take-back. Remove batteries if possible.",
+    }
+
+  # Hazardous / special
+  if any(k in q for k in ["battery", "batteries", "paint", "chemical", "chemicals", "medicine", "medication", "pesticide", "oil", "motor oil", "thermometer", "bulb"]):
+    return {
+      "bin": "Hazardous",
+      "icon": "⚠️",
+      "tip": "Hazardous items should go to a designated collection point. Check local drop-off rules for safe disposal.",
+    }
+
+  # Sanitary
+  if any(k in q for k in ["diaper", "diapers", "nappy", "nappies", "sanitary", "tissue", "sanitary products"]):
+    return {
+      "bin": "Sanitary",
+      "icon": "🚫",
+      "tip": "Sanitary waste usually goes to a separate sanitary stream. Follow your local rules for collection and disposal.",
+    }
+
+  # Compost / organics
+  if any(k in q for k in ["banana peel", "banana", "apple core", "apple", "coffee", "grounds", "tea bag", "vegetable", "peel", "eggshell", "eggshells", "grass clippings", "leaves", "food scraps", "bread"]):
+    return {
+      "bin": "Compost",
+      "icon": "🌿",
+      "tip": "Place food/yard organics in your compost/organics stream. Keep it free of plastics and liquids when possible.",
+    }
+
+  # Recycling
+  if any(k in q for k in ["newspaper", "paper", "cardboard", "glass", "bottle", "jar", "can", "cans", "aluminium", "aluminum", "tin can", "metal", "magazine"]):
+    return {
+      "bin": "Recycling",
+      "icon": "♻️",
+      "tip": "Recycle accepted materials in your recycling bin. Empty and rinse containers; keep paper dry.",
+    }
+
+  return {
+    "bin": "General Waste",
+    "icon": "🗑️",
+    "tip": "If it doesn't clearly fit recycling or compost, place it in general/residual waste. When in doubt, check your local waste guide.",
+  }
+
+
 @app.get("/")
 def index():
   return send_from_directory(FRONTEND_DIR, "ai garbage sort assistant.html")
@@ -183,12 +245,16 @@ def sort_item():
   sources = area_rec.get("sources", []) if area_rec else []
 
   parsed, err = _anthropic_call(query=query, area_name=area_name, area_bin_colors=area_bin_colors)
-  if err:
-    return jsonify({"error": err}), 502
-
-  bin_category = (parsed.get("bin") or "").strip() or "General Waste"
-  icon = (parsed.get("icon") or "🗑️").strip()
-  tip = (parsed.get("tip") or "").strip()
+  if err or not parsed:
+    # Keep the app reliable: return a grounded color mapping even if LLM is down.
+    heur = _heuristic_sort(query)
+    bin_category = heur.get("bin", "General Waste")
+    icon = heur.get("icon", "🗑️")
+    tip = heur.get("tip", "")
+  else:
+    bin_category = (parsed.get("bin") or "").strip() or "General Waste"
+    icon = (parsed.get("icon") or "🗑️").strip()
+    tip = (parsed.get("tip") or "").strip()
 
   grounded = bool(area_rec)
   bin_key = _bin_key_from_category(bin_category)

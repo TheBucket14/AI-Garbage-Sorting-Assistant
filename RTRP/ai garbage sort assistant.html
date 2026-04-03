@@ -9,30 +9,7 @@
 
 </head>
 <body>
-
-<script>
-  // Mouse-reactive background CSS variables (lightweight).
-  // Uses rAF throttling and respects prefers-reduced-motion.
-  (() => {
-    const reduce = window.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches;
-    if (reduce) return;
-    let raf = 0;
-    let lastX = 0.5, lastY = 0.5;
-    const apply = () => {
-      raf = 0;
-      const mx = Math.max(0, Math.min(1, lastX)) * 100;
-      const my = Math.max(0, Math.min(1, lastY)) * 100;
-      document.documentElement.style.setProperty('--mx', mx.toFixed(2) + '%');
-      document.documentElement.style.setProperty('--my', my.toFixed(2) + '%');
-    };
-    window.addEventListener('pointermove', (e) => {
-      lastX = e.clientX / Math.max(1, window.innerWidth);
-      lastY = e.clientY / Math.max(1, window.innerHeight);
-      if (!raf) raf = requestAnimationFrame(apply);
-    }, { passive: true });
-    apply();
-  })();
-</script>
+<div id="shape-bg" aria-hidden="true"></div>
 
 <!-- NAVBAR -->
 <nav>
@@ -84,7 +61,7 @@
 </section>
 
 <!-- STATS BAR -->
-<div class="stats-bar">
+<!-- <div class="stats-bar">
   <div class="stats-inner">
     <div class="stat"><div class="stat-num" id="s1">0</div><div class="stat-label">Items Sorted Today</div></div>
     <div class="stat"><div class="stat-num" id="s2">0%</div><div class="stat-label">Sorting Accuracy</div></div>
@@ -92,7 +69,7 @@
     <div class="stat"><div class="stat-num" id="s4">0+</div><div class="stat-label">Active Users</div></div>
   </div>
 </div>
-
+-->
 <!-- SORTER SECTION -->
 <section class="sorter-section" id="sorter">
   <div class="section-label">AI Garbage Sorting Assistant</div>

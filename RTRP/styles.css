@@ -26,15 +26,51 @@
     overflow-x: hidden;
   }
 
+  /* Replaced animated gradient with interactive DOM shapes. */
+  body::before, body::after { display: none; }
+
+  /* ===== Interactive Shape Background ===== */
+  #shape-bg {
+    position: fixed;
+    inset: 0;
+    z-index: 0;
+    pointer-events: none;
+    overflow: hidden;
+  }
+
+  .shape {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: var(--size, 40px);
+    height: var(--size, 40px);
+    opacity: var(--opacity, 0.12);
+    transform: translate3d(var(--x, 0px), var(--y, 0px), 0) rotate(var(--r, 0deg)) scale(var(--s, 1));
+    will-change: transform, opacity;
+    filter: blur(0px);
+  }
+
+  .shape.circle { border-radius: 999px; background: var(--c, rgba(111,207,58,0.6)); }
+  .shape.square { border-radius: 10px; background: var(--c, rgba(111,207,58,0.6)); }
+  .shape.triangle {
+    width: 0; height: 0;
+    background: transparent;
+    border-left: calc(var(--size, 40px) * 0.5) solid transparent;
+    border-right: calc(var(--size, 40px) * 0.5) solid transparent;
+    border-bottom: var(--size, 40px) solid var(--c, rgba(111,207,58,0.6));
+    opacity: var(--opacity, 0.12);
+  }
+
   /* Animated BG */
   body::before {
     content: '';
     position: fixed; inset: 0;
     background:
-      radial-gradient(ellipse 640px 440px at calc(10% + (var(--mx, 50%) - 50%) * 0.08) calc(20% + (var(--my, 50%) - 50%) * 0.10), rgba(80,180,30,0.09) 0%, transparent 70%),
-      radial-gradient(ellipse 520px 720px at calc(90% + (var(--mx, 50%) - 50%) * -0.10) calc(80% + (var(--my, 50%) - 50%) * -0.08), rgba(30,120,60,0.07) 0%, transparent 70%),
-      radial-gradient(ellipse 420px 420px at calc(55% + (var(--mx, 50%) - 50%) * 0.06) calc(35% + (var(--my, 50%) - 50%) * -0.06), rgba(74,200,240,0.05) 0%, transparent 70%);
+      radial-gradient(ellipse 720px 520px at calc(10% + (var(--mx, 50%) - 50%) * 0.22) calc(18% + (var(--my, 50%) - 50%) * 0.28), rgba(80,180,30,0.15) 0%, transparent 68%),
+      radial-gradient(ellipse 560px 760px at calc(90% + (var(--mx, 50%) - 50%) * -0.26) calc(82% + (var(--my, 50%) - 50%) * -0.22), rgba(30,120,60,0.12) 0%, transparent 68%),
+      radial-gradient(ellipse 480px 480px at calc(55% + (var(--mx, 50%) - 50%) * 0.18) calc(35% + (var(--my, 50%) - 50%) * -0.18), rgba(74,200,240,0.10) 0%, transparent 64%);
     pointer-events: none; z-index: 0;
+    filter: blur(18px) saturate(1.15);
   }
 
   body::after {
@@ -43,9 +79,9 @@
     pointer-events: none; z-index: 0;
     background:
       linear-gradient(180deg, rgba(14,18,14,0.35), rgba(14,18,14,0.85)),
-      radial-gradient(ellipse 900px 520px at calc(50% + (var(--mx, 50%) - 50%) * 0.12) calc(80% + (var(--my, 50%) - 50%) * 0.12), rgba(184,240,74,0.04) 0%, transparent 70%);
+      radial-gradient(ellipse 980px 560px at calc(50% + (var(--mx, 50%) - 50%) * 0.26) calc(80% + (var(--my, 50%) - 50%) * 0.22), rgba(184,240,74,0.07) 0%, transparent 70%);
     mix-blend-mode: screen;
-    opacity: 0.9;
+    opacity: 0.95;
   }
 
   /* ===== NAVBAR ===== */

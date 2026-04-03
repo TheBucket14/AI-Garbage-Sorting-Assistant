@@ -80,7 +80,12 @@ const recent = [];
 function updateScore(bin) {
   scores.total++;
   if (bin.includes('Recycl')) scores.recycled++;
-  else if (bin.includes('Compost')) scores.composted++;
+  else if (
+    bin.includes('Compost') ||
+    bin.includes('Organics') ||
+    bin.includes('organic') ||
+    bin.includes('wet')
+  ) scores.composted++;
   else scores.disposed++;
 
   const eco = Math.min(99, scores.total * 7);
@@ -378,6 +383,184 @@ function animateCount(id, target, suffix = '', duration = 2000) {
   requestAnimationFrame(update);
 }
 
+function initInteractiveBackground(opts = {}) {
+  const bg = document.getElementById('shape-bg');
+  if (!bg) return;
+
+  // Reduced motion: render static shapes.
+  const reduce = window.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches;
+
+  const shapeCount = opts.shapeCount ?? 10;
+  const proximityPx = opts.proximityPx ?? 160;
+  const colors = [
+    'var(--green)',
+    'var(--blue)',
+    'var(--orange)',
+    'var(--red)',
+    'var(--lime)',
+    'var(--yellow)'
+  ];
+
+  bg.innerHTML = '';
+  const shapes = [];
+  const rand = (a, b) => a + Math.random() * (b - a);
+  const pick = (arr) => arr[Math.floor(Math.random() * arr.length)];
+
+  const resize = () => {
+    const w = window.innerWidth;
+    const h = window.innerHeight;
+    for (const s of shapes) {
+      s.x = Math.max(0, Math.min(w - s.size, s.x));
+      s.y = Math.max(0, Math.min(h - s.size, s.y));
+    }
+  };
+
+  for (let i = 0; i < shapeCount; i++) {
+    const size = rand(18, 72);
+    const type = pick(['circle', 'square', 'square', 'triangle']); // more squares/circles
+    const el = document.createElement('div');
+    el.className = `shape ${type}`;
+
+    const color = pick(colors);
+    // With more shapes, keep opacity lower to avoid visual clutter.
+    const opacity = rand(0.04, 0.12);
+    const baseScale = rand(0.9, 1.08);
+
+    const x = rand(0, Math.max(1, window.innerWidth - size));
+    const y = rand(0, Math.max(1, window.innerHeight - size));
+
+    const vx = rand(-0.35, 0.35);
+    const vy = rand(-0.25, 0.25);
+    const rot = rand(0, 360);
+    const baseRotSpeed = rand(-16, 16); // deg/sec
+    const rotSpeed = baseRotSpeed;
+
+    el.style.setProperty('--size', `${size}px`);
+    el.style.setProperty('--opacity', opacity.toFixed(3));
+    el.style.setProperty('--c', color);
+    el.style.setProperty('--x', `${x.toFixed(2)}px`);
+    el.style.setProperty('--y', `${y.toFixed(2)}px`);
+    el.style.setProperty('--r', `${rot.toFixed(2)}deg`);
+    el.style.setProperty('--s', baseScale.toFixed(3));
+
+    bg.appendChild(el);
+
+    shapes.push({
+      el,
+      type,
+      size,
+      x,
+      y,
+      vx,
+      vy,
+      baseVx: vx,
+      baseVy: vy,
+      rot,
+      rotSpeed,
+      baseRotSpeed,
+      baseScale,
+      opacity,
+    });
+  }
+
+  // Position mouse; start at center so shapes respond immediately after first move.
+  let mouseX = window.innerWidth / 2;
+  let mouseY = window.innerHeight / 2;
+  window.addEventListener(
+    'pointermove',
+    (e) => {
+      mouseX = e.clientX;
+      mouseY = e.clientY;
+    },
+    { passive: true }
+  );
+
+  if (reduce) {
+    window.addEventListener('resize', resize);
+    return;
+  }
+
+  let last = performance.now();
+  let rafId = 0;
+
+  const tick = (now) => {
+    const dt = Math.min(0.033, (now - last) / 1000); // clamp for stability
+    last = now;
+    const w = window.innerWidth;
+    const h = window.innerHeight;
+    const prox2 = proximityPx * proximityPx;
+
+    for (const s of shapes) {
+      // Drift
+      s.x += s.vx;
+      s.y += s.vy;
+
+      // Bounce (use top-left coords)
+      if (s.x <= 0) {
+        s.x = 0;
+        s.vx = Math.abs(s.vx);
+      } else if (s.x >= w - s.size) {
+        s.x = w - s.size;
+        s.vx = -Math.abs(s.vx);
+      }
+      if (s.y <= 0) {
+        s.y = 0;
+        s.vy = Math.abs(s.vy);
+      } else if (s.y >= h - s.size) {
+        s.y = h - s.size;
+        s.vy = -Math.abs(s.vy);
+      }
+
+      // Proximity interaction
+      const cx = s.x + s.size / 2;
+      const cy = s.y + s.size / 2;
+      const dx = cx - mouseX;
+      const dy = cy - mouseY;
+      const d2 = dx * dx + dy * dy;
+
+      let t = 0;
+      if (d2 < prox2) {
+        const d = Math.sqrt(d2) + 0.0001;
+        t = 1 - d / proximityPx; // 0..1
+
+        const nx = dx / d;
+        const ny = dy / d;
+
+        // Gentle attraction toward mouse.
+        const strength = 22; // tune for subtle motion
+        s.vx += -nx * t * strength * dt;
+        s.vy += -ny * t * strength * dt;
+
+        // Rotation and scale boost near cursor.
+        s.rotSpeed = s.baseRotSpeed * (1 + t) + (t * 24 * (dx > 0 ? 1 : -1)) * dt * 0.4;
+      } else {
+        // Relax back to baseline drift.
+        s.vx = s.vx * 0.985 + s.baseVx * 0.015;
+        s.vy = s.vy * 0.985 + s.baseVy * 0.015;
+        s.rotSpeed = s.rotSpeed * 0.98 + s.baseRotSpeed * 0.02;
+      }
+
+      s.rot += s.rotSpeed * dt;
+      const scale = s.baseScale * (1 + t * 0.10);
+      const opacity = Math.min(0.22, s.opacity + t * 0.12);
+
+      s.el.style.setProperty('--x', `${s.x.toFixed(2)}px`);
+      s.el.style.setProperty('--y', `${s.y.toFixed(2)}px`);
+      s.el.style.setProperty('--r', `${s.rot.toFixed(2)}deg`);
+      s.el.style.setProperty('--s', scale.toFixed(3));
+      s.el.style.setProperty('--opacity', opacity.toFixed(3));
+    }
+
+    rafId = requestAnimationFrame(tick);
+  };
+
+  window.addEventListener('resize', resize);
+  rafId = requestAnimationFrame(tick);
+
+  // If needed later: return a cleanup function.
+  return () => cancelAnimationFrame(rafId);
+}
+
 window.addEventListener('load', () => {
   setTimeout(() => {
     animateCount('s1', 2143, '');
@@ -387,6 +570,7 @@ window.addEventListener('load', () => {
   }, 600);
   renderRecent();
   checkApiHealth();
+  initInteractiveBackground({ shapeCount: 28, proximityPx: 170, subtle: true });
 });
 
 async function checkApiHealth() {
