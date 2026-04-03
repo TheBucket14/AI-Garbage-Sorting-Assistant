@@ -47,6 +47,7 @@
       "binColors": {
         "organics": "Green (wet waste)",
         "recycling": "Blue (dry waste)",
+        "ewaste": "Separate drop-off (no standard curbside color)",
         "sanitary": "Separate stream (sanitary waste)",
         "hazardous": "Separate stream (domestic hazardous/special-care waste)",
         "general": "If not covered above, treat as residual/general (verify locally)"
