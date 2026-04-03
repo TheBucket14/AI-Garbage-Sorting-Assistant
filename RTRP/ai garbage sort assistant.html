@@ -10,14 +10,38 @@
 </head>
 <body>
 
+<script>
+  // Mouse-reactive background CSS variables (lightweight).
+  // Uses rAF throttling and respects prefers-reduced-motion.
+  (() => {
+    const reduce = window.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches;
+    if (reduce) return;
+    let raf = 0;
+    let lastX = 0.5, lastY = 0.5;
+    const apply = () => {
+      raf = 0;
+      const mx = Math.max(0, Math.min(1, lastX)) * 100;
+      const my = Math.max(0, Math.min(1, lastY)) * 100;
+      document.documentElement.style.setProperty('--mx', mx.toFixed(2) + '%');
+      document.documentElement.style.setProperty('--my', my.toFixed(2) + '%');
+    };
+    window.addEventListener('pointermove', (e) => {
+      lastX = e.clientX / Math.max(1, window.innerWidth);
+      lastY = e.clientY / Math.max(1, window.innerHeight);
+      if (!raf) raf = requestAnimationFrame(apply);
+    }, { passive: true });
+    apply();
+  })();
+</script>
+
 <!-- NAVBAR -->
 <nav>
   <a href="#" class="nav-logo"><span class="dot"></span> AI Garbage Sorting Assistant</a>
   <div class="nav-links">
     <a href="#sorter" class="active">Sorter</a>
     <a href="#how">How It Works</a>
-    <a href="#">Bin Guide</a>
-    <a href="#">Dashboard</a>
+    <a href="#bin-guide">Bin Guide</a>
+    <a href="#dashboard">Dashboard</a>
   </div>
   <a href="#sorter" class="nav-cta">Try Now →</a>
 </nav>
@@ -82,8 +106,11 @@
           <div class="chat-ai-dot"></div>
           <h3>AI garbage Sorting Assistant</h3>
         </div>
-        
-        <button class="chat-clear-btn" onclick="clearChat()">Clear chat</button>
+        <div class="chat-topbar-right">
+          <label class="area-label" for="areaInput">Area</label>
+          <input id="areaInput" class="area-input" type="text" placeholder="e.g. Toronto, ON" autocomplete="off" />
+          <button class="chat-clear-btn" onclick="clearChat()">Clear chat</button>
+        </div>
       </div>
 
       <div class="messages" id="messages">
@@ -218,6 +245,49 @@
   </div>
 </section>
 
+<!-- BIN GUIDE -->
+<section class="hiw-section" id="bin-guide">
+  <div class="section-label">Reference</div>
+  <div class="section-title">Bin Guide (by area)</div>
+  <div class="bin-guide-grid">
+    <div class="side-card">
+      <h3>🗺️ Your area</h3>
+      <p class="muted" id="binGuideArea">Type an area above (in the chat header) to see local bin colors, if we have them.</p>
+    </div>
+    <div class="side-card">
+      <h3>🎨 Bin colors</h3>
+      <div id="binGuideColors" class="bin-guide-colors">
+        <p class="muted">No area selected yet.</p>
+      </div>
+      <div class="bin-guide-sources">
+        <h4>Sources</h4>
+        <ul id="binGuideSources"></ul>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- DASHBOARD -->
+<section class="hiw-section" id="dashboard">
+  <div class="section-label">Stats</div>
+  <div class="section-title">Dashboard</div>
+  <div class="dash-grid">
+    <div class="side-card">
+      <h3>🧾 Recent items</h3>
+      <ul id="recentItems" class="recent-items"></ul>
+      <p class="muted" id="recentEmpty">No items yet — try sorting something.</p>
+    </div>
+    <div class="side-card">
+      <h3>✅ Reliability</h3>
+      <p class="muted">Known items are answered instantly from the built-in database. Unknown items are sent to the server for a grounded answer with sources (when available).</p>
+      <div class="status-row">
+        <span class="status-dot" id="apiStatusDot"></span>
+        <span class="muted" id="apiStatusText">API not checked yet.</span>
+      </div>
+    </div>
+  </div>
+</section>
+
 <!-- FOOTER -->
 <footer>
   <div class="logo">EcoSort AI</div>
@@ -225,258 +295,6 @@
   <p style="color:var(--muted); font-size:0.75rem;">Built with HTML · CSS · JavaScript · Flask (Backend)</p>
 </footer>
 
-<script>
-// ===== SORTING KNOWLEDGE BASE =====
-const sortingDB = {
-  // RECYCLING
-  'newspaper': { bin: 'Recycling', label: 'label-blue', icon: '📰', tip: 'Dry newspapers and paper can always go in the recycling bin. Keep them away from moisture.' },
-  'paper': { bin: 'Recycling', label: 'label-blue', icon: '📄', tip: 'Clean paper products are fully recyclable. Shredded paper may need to go in a sealed bag.' },
-  'cardboard box': { bin: 'Recycling', label: 'label-blue', icon: '📦', tip: 'Flatten the box to save space. Remove any tape or foam inserts first.' },
-  'cardboard': { bin: 'Recycling', label: 'label-blue', icon: '📦', tip: 'Flatten and break down cardboard before placing in the recycling bin.' },
-  'glass bottle': { bin: 'Recycling', label: 'label-blue', icon: '🍾', tip: 'Rinse the bottle and remove the cap. Glass is 100% recyclable infinitely!' },
-  'glass jar': { bin: 'Recycling', label: 'label-blue', icon: '🫙', tip: 'Empty and rinse the jar. Remove the metal lid — it can be recycled separately.' },
-  'aluminium can': { bin: 'Recycling', label: 'label-blue', icon: '🥫', tip: 'Rinse the can. Aluminium is the most valuable recyclable material!' },
-  'aluminum can': { bin: 'Recycling', label: 'label-blue', icon: '🥫', tip: 'Rinse the can. Aluminium is the most valuable recyclable material!' },
-  'tin can': { bin: 'Recycling', label: 'label-blue', icon: '🥫', tip: 'Rinse and recycle. Remove the label if possible for better processing.' },
-  'plastic bottle': { bin: 'Recycling', label: 'label-blue', icon: '🧴', tip: 'Rinse the bottle and remove the cap. Crush to save space. Most #1 and #2 plastics are widely accepted.' },
-  'water bottle': { bin: 'Recycling', label: 'label-blue', icon: '🍼', tip: 'Rinse and recycle. PET plastic bottles are among the most recyclable items.' },
-  'magazine': { bin: 'Recycling', label: 'label-blue', icon: '📖', tip: 'Glossy magazines are recyclable in most areas. Remove any free gifts or plastic wrapping first.' },
-  'milk carton': { bin: 'Recycling', label: 'label-blue', icon: '🥛', tip: 'Rinse and flatten the carton. Many areas accept Tetra Pak in recycling.' },
-  'cereal box': { bin: 'Recycling', label: 'label-blue', icon: '📦', tip: 'Flatten and recycle. Remove any plastic bags inside — those go in general waste.' },
-  'steel can': { bin: 'Recycling', label: 'label-blue', icon: '🥫', tip: 'Rinse and recycle. Steel cans are fully recyclable and very valuable.' },
-
-  // COMPOST
-  'banana peel': { bin: 'Compost', label: 'label-green', icon: '🍌', tip: 'Banana peels break down quickly in compost, adding potassium to your pile.' },
-  'apple core': { bin: 'Compost', label: 'label-green', icon: '🍎', tip: 'Fruit cores are great compost material. They break down in weeks.' },
-  'coffee grounds': { bin: 'Compost', label: 'label-green', icon: '☕', tip: 'Coffee grounds and paper filters are both compostable and great for soil nitrogen.' },
-  'tea bag': { bin: 'Compost', label: 'label-green', icon: '🍵', tip: 'Most tea bags are compostable, but check for plastic mesh bags — those go in general waste.' },
-  'vegetable peels': { bin: 'Compost', label: 'label-green', icon: '🥕', tip: 'All raw vegetable scraps are excellent compost material — great nitrogen sources.' },
-  'egg shells': { bin: 'Compost', label: 'label-green', icon: '🥚', tip: 'Eggshells add calcium to compost. Crush them for faster breakdown.' },
-  'eggshells': { bin: 'Compost', label: 'label-green', icon: '🥚', tip: 'Eggshells add calcium to compost. Crush them for faster breakdown.' },
-  'grass clippings': { bin: 'Compost', label: 'label-green', icon: '🌱', tip: 'A great green (nitrogen-rich) compost material. Mix with brown materials for balance.' },
-  'leaves': { bin: 'Compost', label: 'label-green', icon: '🍂', tip: 'Dry leaves are perfect brown (carbon-rich) compost material. Shred them for faster composting.' },
-  'food scraps': { bin: 'Compost', label: 'label-green', icon: '🥦', tip: 'Most raw fruit and vegetable scraps are excellent for compost.' },
-  'bread': { bin: 'Compost', label: 'label-green', icon: '🍞', tip: 'Bread can be composted but may attract pests. Bury it in the center of your pile.' },
-
-  // GENERAL WASTE
-  'pizza box': { bin: 'General Waste', label: 'label-orange', icon: '🍕', tip: 'Greasy pizza boxes cannot be recycled. The oil contaminates recycling. Tip: tear off any clean sections and recycle those separately.' },
-  'plastic bag': { bin: 'General Waste', label: 'label-orange', icon: '🛍️', tip: 'Soft plastics cannot go in the recycling bin as they tangle in machinery. Many supermarkets have soft plastic drop-off points.' },
-  'styrofoam': { bin: 'General Waste', label: 'label-orange', icon: '📦', tip: 'Styrofoam/polystyrene is not accepted in most recycling programs. Check for local drop-off facilities.' },
-  'nappies': { bin: 'General Waste', label: 'label-orange', icon: '👶', tip: 'Disposable nappies/diapers go in general waste. They cannot be recycled or composted.' },
-  'diapers': { bin: 'General Waste', label: 'label-orange', icon: '👶', tip: 'Disposable diapers go in general waste. They cannot be recycled or composted.' },
-  'crisp packet': { bin: 'General Waste', label: 'label-orange', icon: '🍟', tip: 'Most crisp and snack packets are made of mixed materials and cannot be recycled at home.' },
-  'chips packet': { bin: 'General Waste', label: 'label-orange', icon: '🍟', tip: 'Mixed-material snack wrappers go in general waste. Some brands have take-back programs.' },
-  'rubber': { bin: 'General Waste', label: 'label-orange', icon: '⭕', tip: 'Most rubber items go in general waste. Some specialist recyclers accept rubber.' },
-  'cling wrap': { bin: 'General Waste', label: 'label-orange', icon: '🧻', tip: 'Plastic cling film is a soft plastic — it goes in general waste or soft-plastic drop-off.' },
-  'broken mirror': { bin: 'General Waste', label: 'label-orange', icon: '🪞', tip: 'Wrap broken glass/mirror in newspaper before placing in general waste to avoid injuries.' },
-  'used tissues': { bin: 'General Waste', label: 'label-orange', icon: '🤧', tip: 'Used tissues are contaminated and cannot be recycled. They go in general waste.' },
-  'sanitary products': { bin: 'General Waste', label: 'label-orange', icon: '🚫', tip: 'All sanitary products go in general waste. Never flush them.' },
-
-  // HAZARDOUS / SPECIAL
-  'old batteries': { bin: 'Hazardous', label: 'label-red', icon: '🔋', tip: 'Batteries contain toxic chemicals and must NEVER go in general waste or recycling. Take to a battery drop-off point at most supermarkets or electronics stores.' },
-  'batteries': { bin: 'Hazardous', label: 'label-red', icon: '🔋', tip: 'All batteries — AA, AAA, car batteries, lithium — must be taken to designated collection points.' },
-  'old mobile phone': { bin: 'E-Waste (Hazardous)', label: 'label-red', icon: '📱', tip: 'Mobile phones contain valuable metals and hazardous materials. Return to a phone shop, e-waste facility, or manufacturer.' },
-  'mobile phone': { bin: 'E-Waste (Hazardous)', label: 'label-red', icon: '📱', tip: 'Donate if working, or take to an e-waste collection point. Never bin a phone.' },
-  'paint': { bin: 'Hazardous', label: 'label-red', icon: '🎨', tip: 'Liquid paint is hazardous. Take to a local hazardous waste collection. Dry, hardened paint can sometimes go in general waste.' },
-  'paint can': { bin: 'Hazardous', label: 'label-red', icon: '🎨', tip: 'Take paint cans to a hazardous household waste facility. Check if local shops do take-back.' },
-  'old medication': { bin: 'Hazardous', label: 'label-red', icon: '💊', tip: 'Return unused medicines to a pharmacy. Never flush them — they pollute waterways.' },
-  'medication': { bin: 'Hazardous', label: 'label-red', icon: '💊', tip: 'Return to a pharmacy for safe disposal. This is free at most pharmacies.' },
-  'chemicals': { bin: 'Hazardous', label: 'label-red', icon: '⚗️', tip: 'Household chemicals must go to a hazardous waste collection facility. Never pour down the drain.' },
-  'pesticide': { bin: 'Hazardous', label: 'label-red', icon: '🧪', tip: 'Take pesticides to a household hazardous waste event or facility. Never bin or pour away.' },
-  'motor oil': { bin: 'Hazardous', label: 'label-red', icon: '🛢️', tip: 'Take used motor oil to an auto shop or recycling center. 1L of oil can contaminate 1 million litres of water.' },
-  'laptop': { bin: 'E-Waste (Hazardous)', label: 'label-red', icon: '💻', tip: 'Laptops contain lithium batteries and valuable metals. Take to an e-waste facility or manufacturer take-back scheme.' },
-  'computer': { bin: 'E-Waste (Hazardous)', label: 'label-red', icon: '🖥️', tip: 'Take to an e-waste facility. Many manufacturers and retailers offer free take-back programs.' },
-  'fluorescent bulb': { bin: 'Hazardous', label: 'label-red', icon: '💡', tip: 'Fluorescent bulbs contain mercury. Take to a designated drop-off point — many hardware stores accept them.' },
-  'light bulb': { bin: 'Hazardous', label: 'label-yellow', icon: '💡', tip: 'LED and CFL bulbs go to designated collection points. Old incandescent bulbs can go in general waste.' },
-  'thermometer': { bin: 'Hazardous', label: 'label-red', icon: '🌡️', tip: 'Mercury thermometers are hazardous. Take to a hazardous waste facility or pharmacy.' },
-};
-
-const tips = [
-  '<strong>Rinse before you bin!</strong> Clean containers recycle much better and prevent contamination of the whole batch.',
-  '<strong>Soft plastics</strong> don\'t go in the recycling bin — they jam sorting machines. Look for supermarket drop-off points.',
-  '<strong>Pizza box dilemma?</strong> Tear off the clean top half to recycle it — the greasy bottom goes in general waste.',
-  '<strong>Coffee cups</strong> are lined with plastic. Most aren\'t recyclable at home — check for specialist coffee cup bins.',
-  '<strong>Batteries in landfill</strong> can cause fires. Always drop them off at collection points in supermarkets or electronics shops.',
-  '<strong>Composting tip:</strong> Mix "browns" (leaves, cardboard) with "greens" (food scraps) for the best compost balance.',
-  '<strong>E-waste</strong> contains gold, silver, copper, and other valuable materials. Always recycle electronics — never bin them.',
-];
-
-// ===== SCORE STATE =====
-let scores = { recycled: 0, composted: 0, disposed: 0, total: 0 };
-
-function updateScore(bin) {
-  scores.total++;
-  if (bin.includes('Recycl')) scores.recycled++;
-  else if (bin.includes('Compost')) scores.composted++;
-  else scores.disposed++;
-
-  const eco = Math.min(99, scores.total * 7);
-  document.getElementById('ecoScore').textContent = eco;
-  document.getElementById('scoreSub').textContent = `${scores.total} item${scores.total !== 1 ? 's' : ''} sorted correctly!`;
-
-  const tot = scores.total || 1;
-  document.getElementById('bar1').style.width = Math.min(100, (scores.recycled / tot) * 100) + '%';
-  document.getElementById('bar2').style.width = Math.min(100, (scores.composted / tot) * 100) + '%';
-  document.getElementById('bar3').style.width = Math.min(100, (scores.disposed / tot) * 100) + '%';
-
-  // Rotate tip
-  document.getElementById('ecoTip').innerHTML = tips[scores.total % tips.length];
-}
-
-// ===== CHAT ENGINE =====
-async function sendMessage() {
-  const input = document.getElementById('chatInput');
-  const text = input.value.trim();
-  if (!text) return;
-  input.value = '';
-
-  addMessage(text, 'user');
-  showTyping();
-
-  // Simulate AI delay then respond
-  await delay(900 + Math.random() * 600);
-  removeTyping();
-  respondToItem(text.toLowerCase());
-}
-
-function quickAsk(item) {
-  addMessage(item, 'user');
-  showTyping();
-  delay(800 + Math.random() * 400).then(() => {
-    removeTyping();
-    respondToItem(item.toLowerCase());
-  });
-}
-
-function respondToItem(query) {
-  // Try exact match first, then partial match
-  let result = sortingDB[query];
-  if (!result) {
-    const keys = Object.keys(sortingDB);
-    const matched = keys.find(k => query.includes(k) || k.includes(query));
-    if (matched) result = sortingDB[matched];
-  }
-
-  if (result) {
-    updateScore(result.bin);
-    const html = `
-      Great question! Here's the result for <strong>${escHtml(query)}</strong>:
-      <div class="result-card">
-        <div class="bin-label ${result.label}">${result.icon} ${result.bin}</div>
-        <div class="tip">${result.tip}</div>
-      </div>
-    `;
-    addMessage(html, 'bot', true);
-  } else {
-    // Use AI API for unknown items
-    askAI(query);
-  }
-}
-
-async function askAI(query) {
-  showTyping();
-  try {
-    const res = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        model: 'claude-sonnet-4-20250514',
-        max_tokens: 1000,
-        system: `You are EcoSort AI, a garbage sorting assistant. When given an item name, respond with exactly this JSON format (no markdown, no extra text):
-{"bin":"Recycling|Compost|General Waste|Hazardous|E-Waste","icon":"emoji","tip":"2 sentence disposal tip"}
-Bins: Recycling=paper/glass/metal/hard plastic, Compost=food/yard waste, General Waste=non-recyclable, Hazardous=batteries/chemicals/medicines/paint, E-Waste=electronics.`,
-        messages: [{ role: 'user', content: `What bin does "${query}" go in?` }]
-      })
-    });
-    const data = await res.json();
-    removeTyping();
-    const text = data.content?.map(b => b.text || '').join('');
-    let parsed;
-    try { parsed = JSON.parse(text.replace(/```json|```/g, '').trim()); } catch(e) { parsed = null; }
-
-    if (parsed) {
-      updateScore(parsed.bin);
-      const labelMap = { 'Recycling':'label-blue','Compost':'label-green','General Waste':'label-orange','Hazardous':'label-red','E-Waste':'label-red' };
-      const html = `
-        Here's the result for <strong>${escHtml(query)}</strong>:
-        <div class="result-card">
-          <div class="bin-label ${labelMap[parsed.bin] || 'label-orange'}">${parsed.icon || '🗑️'} ${parsed.bin}</div>
-          <div class="tip">${parsed.tip}</div>
-        </div>
-      `;
-      addMessage(html, 'bot', true);
-    } else {
-      addMessage(`I'm not sure where <strong>${escHtml(query)}</strong> goes. Could you describe the material it's made of? For example, is it plastic, metal, food, or electronic?`, 'bot', true);
-    }
-  } catch(e) {
-    removeTyping();
-    addMessage(`I couldn't look that up right now. As a general rule: if in doubt, check with your local council's waste guide or describe the item's material to me!`, 'bot', true);
-  }
-}
-
-function addMessage(content, role, isHTML = false) {
-  const msgs = document.getElementById('messages');
-  const div = document.createElement('div');
-  div.className = `msg ${role}`;
-  const avatar = document.createElement('div');
-  avatar.className = 'msg-avatar';
-  avatar.textContent = role === 'bot' ? '🤖' : '👤';
-  const bubble = document.createElement('div');
-  bubble.className = 'msg-bubble';
-  if (isHTML) bubble.innerHTML = content;
-  else bubble.textContent = content;
-  div.appendChild(avatar);
-  div.appendChild(bubble);
-  msgs.appendChild(div);
-  msgs.scrollTop = msgs.scrollHeight;
-}
-
-function showTyping() {
-  const msgs = document.getElementById('messages');
-  const div = document.createElement('div');
-  div.className = 'typing-msg'; div.id = 'typingIndicator';
-  div.innerHTML = `<div class="msg-avatar" style="background:rgba(111,207,58,0.15);border:1px solid rgba(111,207,58,0.3);width:34px;height:34px;border-radius:50%;display:flex;align-items:center;justify-content:center">🤖</div><div class="typing-bubble"><span></span><span></span><span></span></div>`;
-  msgs.appendChild(div);
-  msgs.scrollTop = msgs.scrollHeight;
-}
-
-function removeTyping() {
-  const t = document.getElementById('typingIndicator');
-  if (t) t.remove();
-}
-
-function clearChat() {
-  document.getElementById('messages').innerHTML = `
-    <div class="msg bot">
-      <div class="msg-avatar">🤖</div>
-      <div class="msg-bubble">Chat cleared! What item would you like to sort next?</div>
-    </div>`;
-}
-
-function delay(ms) { return new Promise(r => setTimeout(r, ms)); }
-function escHtml(s) { return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
-
-// ===== ANIMATED STATS =====
-function animateCount(id, target, suffix = '', duration = 2000) {
-  const el = document.getElementById(id);
-  const start = performance.now();
-  const update = (now) => {
-    const p = Math.min(1, (now - start) / duration);
-    const val = Math.floor(p * target);
-    el.textContent = val + suffix;
-    if (p < 1) requestAnimationFrame(update);
-  };
-  requestAnimationFrame(update);
-}
-
-window.addEventListener('load', () => {
-  setTimeout(() => {
-    animateCount('s1', 2143, '');
-    animateCount('s2', 97, '%');
-    animateCount('s3', 8, 't');
-    animateCount('s4', 180, '+');
-  }, 600);
-});
-</script>
+<script src="app.js" defer></script>
 </body>
 </html>
