@@ -1,0 +1,38 @@
+{
+  "version": 1,
+  "bins": [
+    {
+      "id": "bin_001",
+      "areaId": "toronto_on_ca",
+      "name": "Downtown Recycling Station",
+      "types": ["recycling", "organics"],
+      "coordinates": { "lat": 43.6629, "lon": -79.3957 },
+      "address": "123 King St W, Toronto, ON M5H 2R2",
+      "hours": "24/7",
+      "phone": "+1-416-392-8000",
+      "notes": "Drop-off only, no curbside"
+    },
+    {
+      "id": "bin_002",
+      "areaId": "toronto_on_ca",
+      "name": "Central Compost Facility",
+      "types": ["organics"],
+      "coordinates": { "lat": 43.6532, "lon": -79.3832 },
+      "address": "456 Queen St E, Toronto, ON M5A 1T9",
+      "hours": "Mon-Fri 8AM-6PM",
+      "phone": "+1-416-338-1234",
+      "notes": "Compost only, no food waste"
+    },
+    {
+      "id": "bin_003",
+      "areaId": "toronto_on_ca",
+      "name": "Hazardous Waste Depot",
+      "types": ["hazardous"],
+      "coordinates": { "lat": 43.6789, "lon": -79.3470 },
+      "address": "789 Yonge St, Toronto, ON M4W 2G8",
+      "hours": "Sat-Sun 10AM-4PM",
+      "phone": "+1-416-392-2489",
+      "notes": "Batteries, paints, chemicals only"
+    }
+  ]
+}

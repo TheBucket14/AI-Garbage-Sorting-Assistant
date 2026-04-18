@@ -17,6 +17,8 @@ ROOT = Path(__file__).resolve().parents[1]
 FRONTEND_DIR = ROOT / "RTRP"
 DATA_DIR = Path(__file__).resolve().parent / "data"
 AREA_RULES_PATH = DATA_DIR / "area_rules.json"
+BIN_LOCATIONS_PATH = DATA_DIR / "bin_locations.json"
+ISSUES_PATH = DATA_DIR / "issues.json"
 
 
 app = Flask(__name__, static_folder=str(FRONTEND_DIR), static_url_path="")
@@ -222,6 +224,11 @@ def index():
   return send_from_directory(FRONTEND_DIR, "ai garbage sort assistant.html")
 
 
+@app.get("/map")
+def map_page():
+  return send_from_directory(FRONTEND_DIR, "map.html")
+
+
 @app.get("/api/health")
 def health():
   ok = bool(os.getenv("ANTHROPIC_API_KEY", "").strip())
@@ -282,6 +289,57 @@ def sort_item():
       "areaGuide": area_guide,
     }
   )
+
+
+@app.get("/api/bins")
+def get_bins():
+  bins_data = _read_json(BIN_LOCATIONS_PATH)
+  return jsonify({"bins": bins_data.get("bins", [])})
+
+
+@app.post("/api/bins")
+def add_bin():
+  body = request.get_json(silent=True) or {}
+  required = ["name", "types", "coordinates"]
+  if not all(k in body for k in required):
+    return jsonify({"error": "Missing required fields: name, types, coordinates"}), 400
+  
+  bins_data = _read_json(BIN_LOCATIONS_PATH)
+  new_id = f"bin_{len(bins_data.get('bins', [])) + 1:03d}"
+  new_bin = {
+    "id": new_id,
+    "areaId": body.get("areaId", ""),
+    "name": body["name"],
+    "types": body["types"],
+    "coordinates": body["coordinates"],
+    "address": body.get("address", ""),
+    "hours": body.get("hours", ""),
+    "phone": body.get("phone", ""),
+    "notes": body.get("notes", "")
+  }
+  bins_data["bins"].append(new_bin)
+  BIN_LOCATIONS_PATH.write_text(json.dumps(bins_data, indent=2), encoding="utf-8")
+  return jsonify({"message": "Bin added", "bin": new_bin})
+
+
+@app.post("/api/issues")
+def report_issue():
+  body = request.get_json(silent=True) or {}
+  required = ["binId", "issueType"]
+  if not all(k in body for k in required):
+    return jsonify({"error": "Missing required fields: binId, issueType"}), 400
+  
+  issues_data = _read_json(ISSUES_PATH)
+  new_issue = {
+    "id": f"issue_{len(issues_data.get('issues', [])) + 1:03d}",
+    "binId": body["binId"],
+    "issueType": body["issueType"],
+    "description": body.get("description", ""),
+    "timestamp": "2024-01-01T00:00:00Z"  # placeholder
+  }
+  issues_data["issues"].append(new_issue)
+  ISSUES_PATH.write_text(json.dumps(issues_data, indent=2), encoding="utf-8")
+  return jsonify({"message": "Issue reported", "issue": new_issue})
 
 
 if __name__ == "__main__":
