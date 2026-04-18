@@ -4,8 +4,8 @@ let map;
 let bins = [];
 
 async function initMap() {
-  // Initialize map centered on Toronto
-  map = L.map('map').setView([43.6532, -79.3832], 13);
+  // Initialize map centered on Hyderabad, India
+  map = L.map('map').setView([17.3850, 78.4867], 13);
 
   // Add OpenStreetMap tiles
   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
@@ -31,7 +31,14 @@ async function loadBins() {
 }
 
 function addBinMarker(bin) {
-  const marker = L.marker([bin.coordinates.lat, bin.coordinates.lon]).addTo(map);
+  const iconUrl = getBinIcon(bin.types);
+  const customIcon = L.icon({
+    iconUrl: iconUrl,
+    iconSize: [32, 32],
+    iconAnchor: [16, 32],
+    popupAnchor: [0, -32]
+  });
+  const marker = L.marker([bin.coordinates.lat, bin.coordinates.lon], { icon: customIcon }).addTo(map);
   const popupContent = `
     <div class="bin-popup">
       <h3>${bin.name}</h3>
@@ -40,10 +47,17 @@ function addBinMarker(bin) {
       <p><strong>Hours:</strong> ${bin.hours}</p>
       <p><strong>Phone:</strong> ${bin.phone}</p>
       <p><strong>Notes:</strong> ${bin.notes}</p>
-      <button onclick="selectBin('${bin.id}')">Select Bin</button>
+      <button onclick="selectBin('${bin.id}')">Report Issue</button>
     </div>
   `;
   marker.bindPopup(popupContent);
+}
+
+function getBinIcon(types) {
+  if (types.includes('hazardous')) return 'https://cdn-icons-png.flaticon.com/512/190/190411.png'; // hazard icon
+  if (types.includes('organics')) return 'https://cdn-icons-png.flaticon.com/512/1046/1046784.png'; // leaf icon
+  if (types.includes('recycling')) return 'https://cdn-icons-png.flaticon.com/512/1046/1046782.png'; // recycle icon
+  return 'https://cdn-icons-png.flaticon.com/512/1046/1046783.png'; // general bin icon
 }
 
 function onMapClick(e) {
@@ -66,7 +80,7 @@ function showAddBinForm(lat, lon) {
           <option value="general">General</option>
           <option value="hazardous">Hazardous</option>
         </select>
-        <input type="text" id="bin-address" placeholder="Address">
+        <input type="text" id="bin-address" placeholder="Looking up address…" disabled>
         <input type="text" id="bin-hours" placeholder="Hours">
         <input type="text" id="bin-phone" placeholder="Phone">
         <textarea id="bin-notes" placeholder="Notes"></textarea>
@@ -76,6 +90,22 @@ function showAddBinForm(lat, lon) {
     </div>
   `;
   document.body.appendChild(form);
+
+  const addressInput = document.getElementById('bin-address');
+  reverseGeocode(lat, lon).then(address => {
+    addressInput.disabled = false;
+    if (address) {
+      addressInput.value = address;
+      addressInput.placeholder = 'Address';
+    } else {
+      addressInput.value = '';
+      addressInput.placeholder = 'Address not found — enter manually';
+    }
+  }).catch(() => {
+    addressInput.disabled = false;
+    addressInput.value = '';
+    addressInput.placeholder = 'Address not found — enter manually';
+  });
 
   document.getElementById('add-bin-form').addEventListener('submit', async (e) => {
     e.preventDefault();
@@ -92,6 +122,17 @@ function showAddBinForm(lat, lon) {
     await addBin(newBin);
     closeModal();
   });
+}
+
+async function reverseGeocode(lat, lon) {
+  try {
+    const response = await fetch(`https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${encodeURIComponent(lat)}&lon=${encodeURIComponent(lon)}&zoom=18`);
+    const data = await response.json();
+    return data?.display_name || '';
+  } catch (error) {
+    console.warn('Reverse geocode failed', error);
+    return '';
+  }
 }
 
 async function addBin(binData) {

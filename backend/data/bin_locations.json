@@ -3,36 +3,47 @@
   "bins": [
     {
       "id": "bin_001",
-      "areaId": "toronto_on_ca",
-      "name": "Downtown Recycling Station",
+      "areaId": "hyderabad_telangana_in",
+      "name": "Charminar Recycling Center",
       "types": ["recycling", "organics"],
-      "coordinates": { "lat": 43.6629, "lon": -79.3957 },
-      "address": "123 King St W, Toronto, ON M5H 2R2",
+      "coordinates": { "lat": 17.3616, "lon": 78.4747 },
+      "address": "Near Charminar, Hyderabad, Telangana 500002",
       "hours": "24/7",
-      "phone": "+1-416-392-8000",
+      "phone": "+91-40-2345-6789",
       "notes": "Drop-off only, no curbside"
     },
     {
       "id": "bin_002",
-      "areaId": "toronto_on_ca",
-      "name": "Central Compost Facility",
+      "areaId": "hyderabad_telangana_in",
+      "name": "Hitech City Compost Facility",
       "types": ["organics"],
-      "coordinates": { "lat": 43.6532, "lon": -79.3832 },
-      "address": "456 Queen St E, Toronto, ON M5A 1T9",
+      "coordinates": { "lat": 17.4435, "lon": 78.3772 },
+      "address": "Hitech City, Hyderabad, Telangana 500081",
       "hours": "Mon-Fri 8AM-6PM",
-      "phone": "+1-416-338-1234",
+      "phone": "+91-40-4455-1234",
       "notes": "Compost only, no food waste"
     },
     {
       "id": "bin_003",
-      "areaId": "toronto_on_ca",
-      "name": "Hazardous Waste Depot",
+      "areaId": "hyderabad_telangana_in",
+      "name": "Secunderabad Hazardous Waste Depot",
       "types": ["hazardous"],
-      "coordinates": { "lat": 43.6789, "lon": -79.3470 },
-      "address": "789 Yonge St, Toronto, ON M4W 2G8",
+      "coordinates": { "lat": 17.4399, "lon": 78.4983 },
+      "address": "Secunderabad, Hyderabad, Telangana 500003",
       "hours": "Sat-Sun 10AM-4PM",
-      "phone": "+1-416-392-2489",
+      "phone": "+91-40-2789-4567",
       "notes": "Batteries, paints, chemicals only"
+    },
+    {
+      "id": "bin_004",
+      "areaId": "hyderabad_telangana_in",
+      "name": "Banjara Hills General Waste Station",
+      "types": ["general"],
+      "coordinates": { "lat": 17.4126, "lon": 78.4346 },
+      "address": "Banjara Hills, Hyderabad, Telangana 500034",
+      "hours": "24/7",
+      "phone": "+91-40-2335-7890",
+      "notes": "General waste only"
     }
   ]
 }

@@ -151,6 +151,96 @@ async function sendMessage() {
   respondToItem(text);
 }
 
+async function submitImage() {
+  const input = document.getElementById('imageInput');
+  const file = input?.files?.[0];
+  if (!file) {
+    addMessage('Please choose an image first so I can identify the item.', 'bot', false);
+    return;
+  }
+
+  addMessage(`Uploaded image: ${escHtml(file.name)}`, 'user', false);
+  showTyping();
+
+  let result;
+  try {
+    result = await identifyImage(file);
+  } catch (err) {
+    result = null;
+  }
+
+  removeTyping();
+  if (!result) {
+    addMessage('I could not identify that image. Try a clearer photo, or describe the item in the box below.', 'bot', true);
+    return;
+  }
+
+  const itemLabel = result.item || file.name.replace(/\.[^/.]+$/, '');
+  updateScore(result.bin || 'General Waste');
+  const html = `
+    I looked at the image and identified it as <strong>${escHtml(itemLabel)}</strong>:
+    <div class="result-card">
+      <div class="bin-label ${normalizeResultForLabel(result.bin)}">${escHtml(result.icon || '🗑️')} ${escHtml(result.bin || 'General Waste')}</div>
+      <div class="tip">${escHtml(result.tip || 'Choose the bin recommendation above or type the item name for more detail.')}</div>
+    </div>
+  `;
+  addMessage(html, 'bot', true);
+  pushRecent(itemLabel, { bin: result.bin || 'General Waste' });
+}
+
+function previewSelectedImage() {
+  const preview = document.getElementById('imagePreview');
+  const input = document.getElementById('imageInput');
+  const file = input?.files?.[0];
+  if (!file) {
+    preview.innerHTML = 'Select an image to preview your item.';
+    return;
+  }
+  const url = URL.createObjectURL(file);
+  preview.innerHTML = `<img src="${escAttr(url)}" alt="Selected item preview"><span>${escHtml(file.name)}</span>`;
+}
+
+async function identifyImage(file) {
+  const form = new FormData();
+  form.append('image', file);
+  try {
+    const res = await fetch('/api/sort-image', { method: 'POST', body: form });
+    if (!res.ok) throw new Error('Image endpoint failed');
+    const data = await res.json();
+    return data;
+  } catch (err) {
+    return detectImageFromFilename(file.name);
+  }
+}
+
+function detectImageFromFilename(filename) {
+  const label = filename.replace(/\.[^/.]+$/, '').replace(/[_\-]+/g, ' ').trim();
+  if (!label) {
+    return {
+      bin: 'General Waste',
+      icon: '🗑️',
+      tip: 'I could not read the image name. Try typing the item or choosing a clearer image.',
+      item: filename,
+    };
+  }
+  const query = label.toLowerCase();
+  let result = sortingDB[query];
+  if (!result) {
+    const keys = Object.keys(sortingDB);
+    const matched = keys.find(k => query.includes(k) || k.includes(query));
+    if (matched) result = sortingDB[matched];
+  }
+  if (result) {
+    return { ...result, item: label };
+  }
+  return {
+    bin: 'General Waste',
+    icon: '🗑️',
+    tip: 'I could not identify the image definitively. Try typing the item name instead.',
+    item: label,
+  };
+}
+
 function quickAsk(item) {
   addMessage(item, 'user');
   showTyping();

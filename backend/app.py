@@ -10,6 +10,14 @@ import requests
 from dotenv import load_dotenv
 from flask import Flask, jsonify, request, send_from_directory
 
+try:
+    from PIL import Image
+    import numpy as np
+    import tensorflow as tf
+    MODEL_AVAILABLE = True
+except ImportError:
+    MODEL_AVAILABLE = False
+
 
 load_dotenv()
 
@@ -21,7 +29,66 @@ BIN_LOCATIONS_PATH = DATA_DIR / "bin_locations.json"
 ISSUES_PATH = DATA_DIR / "issues.json"
 
 
+# Load ResNet50 model for image classification if available
+if MODEL_AVAILABLE:
+    model = tf.keras.applications.ResNet50(weights='imagenet')
+    preprocess_input = tf.keras.applications.resnet50.preprocess_input
+    decode_predictions = tf.keras.applications.resnet50.decode_predictions
+else:
+    model = None
+
 app = Flask(__name__, static_folder=str(FRONTEND_DIR), static_url_path="")
+
+
+def _classify_image(image_file) -> Dict[str, Any]:
+  """Classify image using ResNet50 and map to garbage category."""
+  if not MODEL_AVAILABLE or not model:
+    # Fallback to filename-based detection
+    label = re.sub(r"\.[^.]+$", "", image_file.filename)
+    label = re.sub(r"[_\-]+", " ", label).strip()
+    if not label:
+      label = "Unknown item"
+    heur = _heuristic_sort(label)
+    heur["item"] = label
+    return heur
+
+  try:
+    img = Image.open(image_file).convert('RGB').resize((224, 224))
+    img_array = np.array(img)
+    img_array = np.expand_dims(img_array, axis=0)
+    img_array = preprocess_input(img_array)
+    predictions = model.predict(img_array)
+    decoded = decode_predictions(predictions, top=3)[0]
+    
+    # Map top prediction to garbage category
+    top_class = decoded[0][1].lower()
+    item_name = decoded[0][1]
+    
+    # Simple mapping based on common objects
+    if any(word in top_class for word in ['bottle', 'can', 'container', 'jar']):
+      return _heuristic_sort('plastic bottle')
+    elif any(word in top_class for word in ['banana', 'apple', 'fruit', 'vegetable']):
+      return _heuristic_sort('banana peel')
+    elif any(word in top_class for word in ['paper', 'cardboard', 'book']):
+      return _heuristic_sort('cardboard box')
+    elif any(word in top_class for word in ['battery', 'cell']):
+      return _heuristic_sort('old batteries')
+    elif any(word in top_class for word in ['phone', 'mobile']):
+      return _heuristic_sort('old mobile phone')
+    else:
+      # Fallback to general waste
+      return {
+        "bin": "General Waste",
+        "icon": "🗑️",
+        "tip": f"Based on the image, this appears to be {item_name}. Please confirm the material for accurate sorting.",
+      }
+  except Exception as e:
+    print(f"Image classification error: {e}")
+    return {
+      "bin": "General Waste",
+      "icon": "🗑️",
+      "tip": "Could not analyze the image. Try describing the item instead.",
+    }
 
 
 def _read_json(path: Path) -> Any:
@@ -289,6 +356,18 @@ def sort_item():
       "areaGuide": area_guide,
     }
   )
+
+
+@app.post("/api/sort-image")
+def sort_image():
+  image = request.files.get("image")
+  if not image or not image.filename:
+    return jsonify({"error": "No image uploaded."}), 400
+
+  # Try to classify the image
+  result = _classify_image(image)
+  result["item"] = image.filename.replace(re.search(r'\.[^.]+$', image.filename).group(), '') if re.search(r'\.[^.]+$', image.filename) else image.filename
+  return jsonify(result)
 
 
 @app.get("/api/bins")
