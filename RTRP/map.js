@@ -45,18 +45,18 @@ async function loadBins() {
 }
 
 function addBinMarker(bin) {
-  const customIcon = createBinIcon(bin.types);
+  const customIcon = createBinIcon(bin.types || ['general']);
   const marker = L.marker([bin.coordinates.lat, bin.coordinates.lon], { icon: customIcon }).addTo(map);
   marker.binData = bin; // Store bin data for later reference
   markers.push(marker);
   
   const popupContent = `
     <div class="bin-popup">
-      <h3>${bin.name}</h3>
+      <h3>${bin.name || 'Unnamed bin'}</h3>
       <p><strong>Types:</strong> ${bin.types.join(', ')}</p>
       <p><strong>Address:</strong> ${bin.address}</p>
-      <p><strong>Hours:</strong> ${bin.hours}</p>
-      <p><strong>Phone:</strong> ${bin.phone}</p>
+      ${bin.hours ? `<p><strong>Hours:</strong> ${bin.hours}</p>` : ''}
+      ${bin.phone ? `<p><strong>Phone:</strong> ${bin.phone}</p>` : ''}
       <p><strong>Notes:</strong> ${bin.notes}</p>
       <button onclick="selectBin('${bin.id}')">Report Issue</button>
     </div>
@@ -66,7 +66,7 @@ function addBinMarker(bin) {
 
 function createBinIcon(types) {
   // Get the primary bin type and corresponding color
-  const primaryType = types[0] || 'general';
+  const primaryType = (types && types[0]) ? String(types[0]).toLowerCase() : 'general';
   const color = BIN_COLORS[primaryType] || BIN_COLORS['general'];
   
   // Get base size and scale based on zoom level
@@ -87,8 +87,10 @@ function createBinIcon(types) {
   `;
   
   const iconSize = size;
+  // Use URL-encoded SVG data URI (more robust than raw base64 in some browsers)
+  const svgData = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svgIcon.trim());
   return L.icon({
-    iconUrl: 'data:image/svg+xml;base64,' + btoa(svgIcon),
+    iconUrl: svgData,
     iconSize: [iconSize, iconSize],
     iconAnchor: [iconSize / 2, iconSize],
     popupAnchor: [0, -iconSize],
@@ -117,7 +119,7 @@ function showAddBinForm(lat, lon) {
     <div class="modal-content">
       <h3>Add New Bin</h3>
       <form id="add-bin-form">
-        <input type="text" id="bin-name" placeholder="Bin Name" required>
+        <!-- Bin name is optional now; we don't require it. Only types and coords are required. -->
         <select id="bin-types" multiple required>
           <option value="recycling">Recycling</option>
           <option value="organics">Organics</option>
@@ -125,8 +127,7 @@ function showAddBinForm(lat, lon) {
           <option value="hazardous">Hazardous</option>
         </select>
         <input type="text" id="bin-address" placeholder="Looking up address…" disabled>
-        <input type="text" id="bin-hours" placeholder="Hours">
-        <input type="text" id="bin-phone" placeholder="Phone">
+        <!-- Hours and phone removed to simplify the form -->
         <textarea id="bin-notes" placeholder="Notes"></textarea>
         <button type="submit">Add Bin</button>
         <button type="button" onclick="closeModal()">Cancel</button>
@@ -155,12 +156,10 @@ function showAddBinForm(lat, lon) {
     e.preventDefault();
     const types = Array.from(document.getElementById('bin-types').selectedOptions).map(o => o.value);
     const newBin = {
-      name: document.getElementById('bin-name').value,
+      // name optional — backend will fill a default if missing
       types: types,
       coordinates: { lat, lon },
       address: document.getElementById('bin-address').value,
-      hours: document.getElementById('bin-hours').value,
-      phone: document.getElementById('bin-phone').value,
       notes: document.getElementById('bin-notes').value
     };
     await addBin(newBin);

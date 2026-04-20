@@ -379,16 +379,17 @@ def get_bins():
 @app.post("/api/bins")
 def add_bin():
   body = request.get_json(silent=True) or {}
-  required = ["name", "types", "coordinates"]
+  # 'name' is optional now — we'll generate a sensible default if omitted.
+  required = ["types", "coordinates"]
   if not all(k in body for k in required):
-    return jsonify({"error": "Missing required fields: name, types, coordinates"}), 400
+    return jsonify({"error": "Missing required fields: types, coordinates"}), 400
   
   bins_data = _read_json(BIN_LOCATIONS_PATH)
   new_id = f"bin_{len(bins_data.get('bins', [])) + 1:03d}"
   new_bin = {
     "id": new_id,
     "areaId": body.get("areaId", ""),
-    "name": body["name"],
+    "name": body.get("name") or f"Bin {new_id}",
     "types": body["types"],
     "coordinates": body["coordinates"],
     "address": body.get("address", ""),
