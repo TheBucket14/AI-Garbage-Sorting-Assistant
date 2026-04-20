@@ -246,6 +246,13 @@ def _heuristic_sort(query: str) -> Dict[str, str]:
 
 @app.get("/")
 def index():
+  # Serve a sign-in page as the first thing users see
+  return send_from_directory(FRONTEND_DIR, "signin.html")
+
+
+@app.get("/app")
+def app_home():
+  # After sign-in redirect here to reach the main application
   return send_from_directory(FRONTEND_DIR, "ai garbage sort assistant.html")
 
 
