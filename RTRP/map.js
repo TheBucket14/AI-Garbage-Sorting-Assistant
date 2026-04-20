@@ -2,6 +2,17 @@
 
 let map;
 let bins = [];
+let markers = [];
+
+// Bin color scheme
+const BIN_COLORS = {
+  'recycling': '#007bff',
+  'organics': '#28a745',
+  'general': '#6c757d',
+  'hazardous': '#dc3545',
+  'ewaste': '#6f42c1',
+  'sanitary': '#e83e8c'
+};
 
 async function initMap() {
   // Initialize map centered on Hyderabad, India
@@ -17,6 +28,9 @@ async function initMap() {
 
   // Add click handler for adding bins
   map.on('click', onMapClick);
+
+  // Add zoom event listener to scale icons
+  map.on('zoom', updateMarkerSizes);
 }
 
 async function loadBins() {
@@ -31,14 +45,11 @@ async function loadBins() {
 }
 
 function addBinMarker(bin) {
-  const iconUrl = getBinIcon(bin.types);
-  const customIcon = L.icon({
-    iconUrl: iconUrl,
-    iconSize: [32, 32],
-    iconAnchor: [16, 32],
-    popupAnchor: [0, -32]
-  });
+  const customIcon = createBinIcon(bin.types);
   const marker = L.marker([bin.coordinates.lat, bin.coordinates.lon], { icon: customIcon }).addTo(map);
+  marker.binData = bin; // Store bin data for later reference
+  markers.push(marker);
+  
   const popupContent = `
     <div class="bin-popup">
       <h3>${bin.name}</h3>
@@ -53,11 +64,44 @@ function addBinMarker(bin) {
   marker.bindPopup(popupContent);
 }
 
-function getBinIcon(types) {
-  if (types.includes('hazardous')) return 'https://cdn-icons-png.flaticon.com/512/190/190411.png'; // hazard icon
-  if (types.includes('organics')) return 'https://cdn-icons-png.flaticon.com/512/1046/1046784.png'; // leaf icon
-  if (types.includes('recycling')) return 'https://cdn-icons-png.flaticon.com/512/1046/1046782.png'; // recycle icon
-  return 'https://cdn-icons-png.flaticon.com/512/1046/1046783.png'; // general bin icon
+function createBinIcon(types) {
+  // Get the primary bin type and corresponding color
+  const primaryType = types[0] || 'general';
+  const color = BIN_COLORS[primaryType] || BIN_COLORS['general'];
+  
+  // Get base size and scale based on zoom level
+  const baseSize = 32;
+  const zoom = map.getZoom();
+  const scale = Math.max(0.6, Math.min(2, (zoom - 10) * 0.1 + 1));
+  const size = Math.round(baseSize * scale);
+  
+  // Create SVG icon as a colored pin
+  const svgIcon = `
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 32" width="${size}" height="${size}">
+      <!-- Pin shape -->
+      <path d="M12 0C6.48 0 2 4.48 2 10c0 5.33 8.75 20 10 22 1.25-2 10-16.67 10-22 0-5.52-4.48-10-10-10z" 
+            fill="${color}" stroke="white" stroke-width="0.5"/>
+      <!-- Inner circle for visual appeal -->
+      <circle cx="12" cy="10" r="3.5" fill="white" opacity="0.8"/>
+    </svg>
+  `;
+  
+  const iconSize = size;
+  return L.icon({
+    iconUrl: 'data:image/svg+xml;base64,' + btoa(svgIcon),
+    iconSize: [iconSize, iconSize],
+    iconAnchor: [iconSize / 2, iconSize],
+    popupAnchor: [0, -iconSize],
+    className: 'bin-marker'
+  });
+}
+
+function updateMarkerSizes() {
+  // Update all marker sizes based on new zoom level
+  markers.forEach(marker => {
+    const newIcon = createBinIcon(marker.binData.types);
+    marker.setIcon(newIcon);
+  });
 }
 
 function onMapClick(e) {
