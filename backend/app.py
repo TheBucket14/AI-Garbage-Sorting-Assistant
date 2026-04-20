@@ -18,6 +18,8 @@ FRONTEND_DIR = ROOT / "RTRP"
 DATA_DIR = Path(__file__).resolve().parent / "data"
 AREA_RULES_PATH = DATA_DIR / "area_rules.json"
 
+# In-memory conversation history (simple dict keyed by session ID)
+conversation_history = {}
 
 app = Flask(__name__, static_folder=str(FRONTEND_DIR), static_url_path="")
 
@@ -91,13 +93,14 @@ def _extract_first_json(text: str) -> Optional[Dict[str, Any]]:
   return None
 
 
-def _anthropic_call(query: str, area_name: Optional[str], area_bin_colors: Optional[Dict[str, str]]) -> Tuple[Optional[Dict[str, Any]], Optional[str]]:
-  api_key = os.getenv("ANTHROPIC_API_KEY", "").strip()
-  if not api_key:
-    return None, "Missing ANTHROPIC_API_KEY."
+def _ollama_call(query: str, area_name: Optional[str], area_bin_colors: Optional[Dict[str, str]]) -> Tuple[Optional[Dict[str, Any]], Optional[str]]:
+  api_key = os.getenv("OLLAMA_API_KEY", "").strip()
+  # Ollama typically runs locally, not requiring an API key
+  # But we'll keep the key check for backward compatibility
 
-  model = os.getenv("ANTHROPIC_MODEL", "claude-sonnet-4-20250514").strip()
-  url = "https://api.anthropic.com/v1/messages"
+  model = os.getenv("OLLAMA_MODEL", "llama2").strip()
+  # Use local Ollama instance instead of cloud API
+  url = "http://localhost:11434/api/generate"
 
   allowed_bins = ["Recycling", "Compost", "Organics", "General Waste", "Hazardous", "E-Waste", "Sanitary"]
   bin_color_hint = ""
@@ -107,60 +110,84 @@ def _anthropic_call(query: str, area_name: Optional[str], area_bin_colors: Optio
     bin_color_hint = f"\nArea bin-color mapping (for context): {keys}\n"
 
   system = (
-    "You are EcoSort AI, a garbage sorting assistant.\n"
-    "Your job: classify a single item into a waste category and give a short practical tip.\n"
-    "Return ONLY valid JSON, no markdown, no extra text.\n"
-    "Use this exact schema:\n"
-    '{\"bin\":\"one of: ' + " | ".join(allowed_bins) + '\",'
-    '\"icon\":\"single emoji\",'
-    '\"tip\":\"1-2 short sentences\",'
-    '\"grounding_note\":\"short note about whether this is locality-specific\"}\n'
-    + (f"Area provided by user: {area_name}\n" if area_name else "Area provided by user: (none)\n")
+    "You are EcoSort AI, a garbage sorting assistant. Return ONLY valid JSON, no markdown.\n"
+    + " | ".join(allowed_bins) + '\n'
+    + (f"Area: {area_name}\n" if area_name else "")
     + bin_color_hint
-    + "Rules:\n"
-    "- If unsure, pick the safest category (Hazardous/E-Waste over general) and ask for material in the tip.\n"
-    "- Do NOT invent citations or URLs.\n"
+    + f"What bin for: {query}?"
   )
 
   payload = {
     "model": model,
-    "max_tokens": 700,
-    "system": system,
-    "messages": [{"role": "user", "content": f'What bin does \"{query}\" go in?'}],
+    "prompt": system,
+    "stream": False,
   }
 
+  # Local Ollama doesn't need authorization headers
   headers = {
     "content-type": "application/json",
-    "x-api-key": api_key,
-    "anthropic-version": "2023-06-01",
   }
 
-  r = requests.post(url, headers=headers, json=payload, timeout=30)
-  if r.status_code >= 400:
-    return None, f"Anthropic API error: {r.status_code} {r.text[:300]}"
+  try:
+    r = requests.post(url, headers=headers, json=payload, timeout=120)
+    if r.status_code >= 400:
+      return None, f"Ollama API error: {r.status_code}"
 
-  data = r.json()
-  parts = data.get("content") or []
-  text = "".join(p.get("text", "") for p in parts if isinstance(p, dict))
-  parsed = _extract_first_json(text)
-  if not parsed:
-    # One retry with stricter formatting instruction.
-    payload_retry = dict(payload)
-    payload_retry["system"] = system + (
-      "\nIMPORTANT: Your entire output must be a single JSON object. "
-      "No code fences, no commentary, no trailing commas.\n"
-    )
-    r2 = requests.post(url, headers=headers, json=payload_retry, timeout=30)
-    if r2.status_code >= 400:
-      return None, f"Anthropic API error (retry): {r2.status_code} {r2.text[:300]}"
-    data2 = r2.json()
-    parts2 = data2.get("content") or []
-    text2 = "".join(p.get("text", "") for p in parts2 if isinstance(p, dict))
-    parsed2 = _extract_first_json(text2)
-    if not parsed2:
-      return None, "Failed to parse JSON response from model."
-    return parsed2, None
-  return parsed, None
+    data = r.json()
+    text = data.get("response", "")
+    parsed = _extract_first_json(text)
+    if not parsed:
+      return None, "Failed to parse JSON from Ollama."
+    return parsed, None
+  except Exception as e:
+    return None, f"Ollama error: {str(e)}"
+
+
+def _ollama_chat(messages: list, area_name: Optional[str] = None) -> Tuple[Optional[str], Optional[str]]:
+  """
+  General-purpose chat using OpenAI-compatible API (works with Together AI, etc.)
+  Messages should be a list of {"role": "user"/"assistant", "content": "..."} dicts.
+  """
+  # Use the local Ollama HTTP API (no API key required)
+  model = os.getenv("OLLAMA_MODEL", "llama2").strip()
+  url = os.getenv("OLLAMA_URL", "http://127.0.0.1:11434/api/generate")
+
+  system = (
+    "You are EcoSort AI, a helpful garbage sorting and sustainability assistant.\n"
+    "Help with: bin types, waste disposal, eco-tips, local recycling rules.\n"
+    "Be concise, friendly, and practical.\n"
+    + (f"User's area: {area_name}\n" if area_name else "")
+  )
+
+  # Build conversation history as a single prompt
+  prompt = system + "\n\n"
+  for msg in messages:
+    role = msg.get("role", "user")
+    content = msg.get("content", "")
+    if role == "user":
+      prompt += f"User: {content}\n"
+    else:
+      prompt += f"Assistant: {content}\n"
+  prompt += "Assistant:"
+
+  payload = {
+    "model": model,
+    "prompt": prompt,
+    "stream": False,
+  }
+
+  headers = {"content-type": "application/json"}
+
+  try:
+    r = requests.post(url, headers=headers, json=payload, timeout=120)
+    if r.status_code >= 400:
+      return None, f"Ollama API error: {r.status_code} - {r.text}"
+
+    data = r.json()
+    text = data.get("response", "")
+    return text, None
+  except Exception as e:
+    return None, f"Error calling Ollama: {str(e)}"
 
 
 def _heuristic_sort(query: str) -> Dict[str, str]:
@@ -224,8 +251,54 @@ def index():
 
 @app.get("/api/health")
 def health():
-  ok = bool(os.getenv("ANTHROPIC_API_KEY", "").strip())
-  return jsonify({"ok": True, "anthropicKeyConfigured": ok})
+  # Don't require API key for health check
+  return jsonify({"ok": True, "ollamaKeyConfigured": bool(os.getenv("OLLAMA_API_KEY", "").strip())})
+
+
+@app.post("/api/chat")
+def chat():
+  """
+  General chat endpoint with conversation history.
+  Expects: {"message": "user message", "sessionId": "optional-session-id", "area": "optional-area"}
+  """
+  body = request.get_json(silent=True) or {}
+  message = (body.get("message") or "").strip()
+  session_id = (body.get("sessionId") or "default").strip()
+  area = (body.get("area") or "").strip()
+
+  if not message:
+    return jsonify({"error": "Missing message."}), 400
+
+  # Get or create conversation history for this session
+  if session_id not in conversation_history:
+    conversation_history[session_id] = []
+
+  history = conversation_history[session_id]
+  
+  # Limit history to last 10 exchanges to avoid token bloat
+  if len(history) > 20:
+    history = history[-20:]
+    conversation_history[session_id] = history
+
+  # Add user message to history
+  history.append({"role": "user", "content": message})
+
+  # Call Claude with history
+  response_text, err = _ollama_chat(history, area_name=area if area else None)
+
+  if err or not response_text:
+    return jsonify({
+      "error": err or "Failed to get response from Claude",
+      "response": "I'm having trouble connecting to my knowledge base right now. Try again in a moment!"
+    }), 500
+
+  # Add assistant response to history
+  history.append({"role": "assistant", "content": response_text})
+
+  return jsonify({
+    "response": response_text,
+    "sessionId": session_id
+  })
 
 
 @app.post("/api/sort")
@@ -244,7 +317,7 @@ def sort_item():
   area_bin_colors = area_rec.get("binColors") if area_rec else None
   sources = area_rec.get("sources", []) if area_rec else []
 
-  parsed, err = _anthropic_call(query=query, area_name=area_name, area_bin_colors=area_bin_colors)
+  parsed, err = _ollama_call(query=query, area_name=area_name, area_bin_colors=area_bin_colors)
   if err or not parsed:
     # Keep the app reliable: return a grounded color mapping even if LLM is down.
     heur = _heuristic_sort(query)
