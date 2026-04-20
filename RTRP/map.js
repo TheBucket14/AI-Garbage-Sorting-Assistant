@@ -186,11 +186,25 @@ async function addBin(binData) {
       body: JSON.stringify(binData)
     });
     const result = await response.json();
-    if (response.ok) {
+    console.log('Add bin result:', response.status, result);
+    if (response.ok && result && result.bin) {
       bins.push(result.bin);
       addBinMarker(result.bin);
+      // Center map on new bin and open its popup so users see it immediately
+      try {
+        const lat = result.bin.coordinates.lat;
+        const lon = result.bin.coordinates.lon;
+        map.setView([lat, lon], Math.max(map.getZoom(), 15));
+        // Find the marker we just added and open its popup
+        const m = markers.find(pm => pm.binData && pm.binData.id === result.bin.id);
+        if (m) {
+          m.openPopup();
+        }
+      } catch (e) {
+        console.warn('Could not center on new bin:', e);
+      }
     } else {
-      alert('Error adding bin: ' + result.error);
+      alert('Error adding bin: ' + (result && result.error ? result.error : 'Unknown error'));
     }
   } catch (error) {
     console.error('Error adding bin:', error);

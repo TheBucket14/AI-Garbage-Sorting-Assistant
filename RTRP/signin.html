@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Sign In — EcoSort</title>
+  <link rel="stylesheet" href="styles.css">
+  <style>
+    /* Small sign-in specific styles that reuse theme tokens */
+    .signin-wrapper { max-width:420px; margin:80px auto; display:flex; align-items:center; justify-content:center; min-height:calc(100vh - 160px); z-index:2; }
+    .signin-card { width:100%; padding:22px; border-radius:14px; box-shadow:0 12px 40px rgba(0,0,0,0.45); text-align:left; }
+    .signin-card .logo { font-family:'Syne',sans-serif; font-size:1.2rem; color:var(--lime); margin-bottom:10px; display:block }
+    .signin-card h3 { color:var(--white); margin-bottom:8px; font-family:'Syne',sans-serif }
+    .signin-field { margin-bottom:12px }
+    .signin-helpers { margin-top:12px; display:flex; justify-content:space-between; align-items:center; color:var(--muted); font-size:0.9rem }
+    .signin-link { color:var(--blue); cursor:pointer; text-decoration:none }
+  </style>
+</head>
+<body>
+  <div id="shape-bg" aria-hidden="true"></div>
+  <div class="signin-wrapper">
+    <div class="side-card signin-card">
+      <div class="logo">EcoSort</div>
+      <h3>Sign in to EcoSort</h3>
+      <p class="muted">Access the garbage sorting assistant and map features.</p>
+
+      <form id="signin-form">
+        <div class="signin-field">
+          <label for="email">Email</label>
+          <input id="email" class="area-input" type="email" placeholder="you@example.com" required>
+        </div>
+        <div class="signin-field">
+          <label for="password">Password</label>
+          <input id="password" class="area-input" type="password" placeholder="Enter password" required>
+        </div>
+        <div style="display:flex;align-items:center;gap:10px;justify-content:space-between">
+          <div style="display:flex;align-items:center;gap:8px"><input id="remember" type="checkbox"><label for="remember" style="margin:0;color:var(--muted)">Remember me</label></div>
+          <button class="btn-primary" type="submit">Sign In</button>
+        </div>
+      </form>
+
+      <div class="signin-helpers">
+        <a class="signin-link" id="forgot">Forgot password?</a>
+        <a class="signin-link" id="create">Create account</a>
+      </div>
+      <div style="text-align:center;margin-top:12px"><a id="skip" class="signin-link">Continue without signing in</a></div>
+    </div>
+  </div>
+
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      try {
+        const auth = localStorage.getItem('ecosort.auth');
+        if (auth) {
+          // quick redirect if already signed in
+          window.location.href = '/app';
+          return;
+        }
+      } catch (e) {}
+
+      document.getElementById('signin-form').addEventListener('submit', function(e){
+        e.preventDefault();
+        const email = document.getElementById('email').value.trim();
+        const pw = document.getElementById('password').value;
+        if (!email || !pw || !email.includes('@') || pw.length < 3) {
+          alert('Please enter a valid email and password (min 3 chars).');
+          return;
+        }
+        localStorage.setItem('ecosort.auth', JSON.stringify({ email: email, ts: Date.now() }));
+        window.location.href = '/app';
+      });
+
+      document.getElementById('skip').addEventListener('click', function(){ window.location.href = '/app'; });
+      document.getElementById('forgot').addEventListener('click', function(){ alert('Password recovery is not configured in this demo.'); });
+      document.getElementById('create').addEventListener('click', function(){ alert('Account creation is not configured in this demo.'); });
+    });
+  </script>
+</body>
+</html>

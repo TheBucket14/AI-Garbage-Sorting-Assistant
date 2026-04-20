@@ -288,6 +288,12 @@ def _heuristic_sort(query: str) -> Dict[str, str]:
 
 @app.get("/")
 def index():
+  # Serve sign-in page first for the nested frontend
+  return send_from_directory(FRONTEND_DIR, "signin.html")
+
+
+@app.get("/app")
+def app_home():
   return send_from_directory(FRONTEND_DIR, "ai garbage sort assistant.html")
 
 
