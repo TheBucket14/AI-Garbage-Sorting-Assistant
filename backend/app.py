@@ -11,12 +11,15 @@ from dotenv import load_dotenv
 from flask import Flask, jsonify, request, send_from_directory
 
 try:
-    from PIL import Image
-    import numpy as np
-    import tensorflow as tf
+    from PIL import Image  # type: ignore
+    import numpy as np  # type: ignore
+    import tensorflow as tf  # type: ignore
     MODEL_AVAILABLE = True
 except ImportError:
     MODEL_AVAILABLE = False
+    Image = None  # type: ignore
+    np = None  # type: ignore
+    tf = None  # type: ignore
 
 
 load_dotenv()
@@ -31,13 +34,16 @@ ISSUES_PATH = DATA_DIR / "issues.json"
 
 # Load ResNet50 model for image classification if available
 if MODEL_AVAILABLE:
-    model = tf.keras.applications.ResNet50(weights='imagenet')
-    preprocess_input = tf.keras.applications.resnet50.preprocess_input
-    decode_predictions = tf.keras.applications.resnet50.decode_predictions
+    model = tf.keras.applications.ResNet50(weights='imagenet')  # type: ignore
+    preprocess_input = tf.keras.applications.resnet50.preprocess_input  # type: ignore
+    decode_predictions = tf.keras.applications.resnet50.decode_predictions  # type: ignore
 else:
     model = None
 
 app = Flask(__name__, static_folder=str(FRONTEND_DIR), static_url_path="")
+
+# In-memory conversation history (keyed by session ID)
+conversation_history = {}
 
 
 def _classify_image(image_file) -> Dict[str, Any]:
@@ -53,9 +59,9 @@ def _classify_image(image_file) -> Dict[str, Any]:
     return heur
 
   try:
-    img = Image.open(image_file).convert('RGB').resize((224, 224))
-    img_array = np.array(img)
-    img_array = np.expand_dims(img_array, axis=0)
+    img = Image.open(image_file).convert('RGB').resize((224, 224))  # type: ignore
+    img_array = np.array(img)  # type: ignore
+    img_array = np.expand_dims(img_array, axis=0)  # type: ignore
     img_array = preprocess_input(img_array)
     predictions = model.predict(img_array)
     decoded = decode_predictions(predictions, top=3)[0]
@@ -286,6 +292,46 @@ def _heuristic_sort(query: str) -> Dict[str, str]:
   }
 
 
+def _generate_chat_response(message: str, area_name: Optional[str] = None) -> str:
+  """
+  Generate a helpful chat response based on garbage sorting knowledge.
+  Falls back to heuristic patterns if LLM is unavailable.
+  """
+  msg_lower = message.lower().strip()
+  
+  # Common eco tips and questions
+  eco_tips = {
+    "how": "I can help with waste sorting! Ask me about specific items, or I can share eco-tips. What would you like to know?",
+    "tip": "💡 Quick tips: Rinse containers before recycling, break down cardboard, never put batteries in regular bins, and compost food scraps when possible!",
+    "compost": "🌿 Compost accepts: fruit/vegetable scraps, coffee grounds, tea bags, eggshells, grass clippings, and leaves. Avoid meat, dairy, and oils.",
+    "recycle": "♻️ Recycling bin: paper, cardboard, glass bottles, metal cans, and #1-#7 plastics. Rinse containers and remove caps.",
+    "hazard": "⚠️ Hazardous waste includes batteries, paint, chemicals, medicines, and electronics. Take these to special drop-off facilities.",
+    "general": "🗑️ General waste is for items that don't fit other categories: soft plastics, styrofoam, soiled packaging, and mixed materials.",
+    "covid": "During the pandemic, waste sorting best practices remain the same. Just be careful with disposable masks—they go in general waste, never recycling.",
+  }
+  
+  # Check for keyword matches
+  for key, response in eco_tips.items():
+    if key in msg_lower:
+      return response
+  
+  # Try to extract an item name and sort it
+  # Remove common question words
+  words_to_remove = ["what", "where", "how", "do", "should", "can", "i", "bin", "goes", "in", "to", "does", "about", "tell", "me"]
+  item_guess = msg_lower
+  for word in words_to_remove:
+    item_guess = item_guess.replace(word, " ").strip()
+  
+  if len(item_guess) > 2:
+    # Try to match against heuristic knowledge
+    result = _heuristic_sort(item_guess)
+    if result:
+      return f"Based on what you asked about:\n{result['icon']} {result['bin']}\n\n{result['tip']}"
+  
+  # Generic fallback
+  return "I can help you sort waste! Ask me about a specific item, or say 'tips' for eco-tips. What are you throwing away?"
+
+
 @app.get("/")
 def index():
   # Serve sign-in page first for the nested frontend
@@ -306,6 +352,44 @@ def map_page():
 def health():
   ok = bool(os.getenv("ANTHROPIC_API_KEY", "").strip())
   return jsonify({"ok": True, "anthropicKeyConfigured": ok})
+
+
+@app.post("/api/chat")
+def chat():
+  """
+  Chat endpoint for general waste-sorting conversation.
+  Maintains conversation history per session.
+  """
+  body = request.get_json(silent=True) or {}
+  message = (body.get("message") or "").strip()
+  session_id = (body.get("sessionId") or "default").strip()
+  area = (body.get("area") or "").strip()
+
+  if not message:
+    return jsonify({"error": "Missing message."}), 400
+
+  # Initialize conversation history for this session if needed
+  if session_id not in conversation_history:
+    conversation_history[session_id] = []
+
+  history = conversation_history[session_id]
+  
+  # Limit history to last 20 messages to avoid bloat
+  if len(history) > 20:
+    history = history[-20:]
+    conversation_history[session_id] = history
+
+  # Generate response using heuristic chat
+  response_text = _generate_chat_response(message, area_name=area if area else None)
+
+  # Store in history
+  history.append({"role": "user", "content": message})
+  history.append({"role": "assistant", "content": response_text})
+
+  return jsonify({
+    "response": response_text,
+    "sessionId": session_id
+  })
 
 
 @app.post("/api/sort")
@@ -372,7 +456,9 @@ def sort_image():
 
   # Try to classify the image
   result = _classify_image(image)
-  result["item"] = image.filename.replace(re.search(r'\.[^.]+$', image.filename).group(), '') if re.search(r'\.[^.]+$', image.filename) else image.filename
+  # Extract filename without extension
+  match = re.search(r'\.[^.]+$', image.filename)
+  result["item"] = image.filename.replace(match.group(), '') if match else image.filename
   return jsonify(result)
 
 
