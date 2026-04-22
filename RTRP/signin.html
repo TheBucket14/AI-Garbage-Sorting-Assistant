@@ -7,21 +7,67 @@
   <link rel="stylesheet" href="styles.css">
   <style>
     /* Small sign-in specific styles that reuse theme tokens */
-    .signin-wrapper { max-width:420px; margin:80px auto; display:flex; align-items:center; justify-content:center; min-height:calc(100vh - 160px); z-index:2; }
-    .signin-card { width:100%; padding:22px; border-radius:14px; box-shadow:0 12px 40px rgba(0,0,0,0.45); text-align:left; }
-    .signin-card .logo { font-family:'Syne',sans-serif; font-size:1.2rem; color:var(--lime); margin-bottom:10px; display:block }
-    .signin-card h3 { color:var(--white); margin-bottom:8px; font-family:'Syne',sans-serif }
-    .signin-field { margin-bottom:12px }
-    .signin-helpers { margin-top:12px; display:flex; justify-content:space-between; align-items:center; color:var(--muted); font-size:0.9rem }
-    .signin-link { color:var(--blue); cursor:pointer; text-decoration:none }
+    .signin-wrapper { max-width:420px; margin:80px auto; display:flex; align-items:center; justify-content:center; min-height:calc(100vh - 160px); z-index:2; animation: fadeUp 0.8s ease 0.2s both; }
+    .signin-card { width:100%; padding:22px; border-radius:14px; box-shadow:0 12px 40px rgba(0,0,0,0.45); text-align:left; background: var(--card); border: 1px solid var(--border); transition: transform 0.2s, border-color 0.2s; }
+    .signin-card:hover { transform: translateY(-2px); border-color: var(--green); }
+    .signin-card .logo { font-family:'Syne',sans-serif; font-size:1.2rem; color:var(--lime); margin-bottom:10px; display:block; animation: fadeUp 0.8s ease 0.4s both; }
+    .signin-card h3 { color:var(--white); margin-bottom:8px; font-family:'Syne',sans-serif; animation: fadeUp 0.8s ease 0.5s both; }
+    .signin-card p { color: var(--muted); margin-bottom: 20px; animation: fadeUp 0.8s ease 0.6s both; }
+    .signin-field { margin-bottom:12px; animation: fadeUp 0.8s ease 0.7s both; }
+    .signin-helpers { margin-top:12px; display:flex; justify-content:space-between; align-items:center; color:var(--muted); font-size:0.9rem; animation: fadeUp 0.8s ease 0.8s both; }
+    .signin-link { color:var(--blue); cursor:pointer; text-decoration:none; transition: color 0.2s; }
+    .signin-link:hover { color: var(--lime); }
+
+    /* Keyframe animations */
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(20px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    /* Input styling */
+    .area-input {
+      width: 100%;
+      padding: 12px 16px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      background: var(--surface);
+      color: var(--text);
+      font-size: 1rem;
+      transition: border-color 0.2s, box-shadow 0.2s;
+    }
+    .area-input:focus {
+      outline: none;
+      border-color: var(--green);
+      box-shadow: 0 0 0 3px rgba(111, 207, 58, 0.1);
+    }
+
+    /* Button styling */
+    .btn-primary {
+      background: var(--green);
+      color: var(--bg);
+      border: none;
+      padding: 12px 24px;
+      border-radius: 8px;
+      font-size: 1rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.2s, transform 0.1s;
+    }
+    .btn-primary:hover {
+      background: var(--green-dim);
+      transform: translateY(-1px);
+    }
+    .btn-primary:active {
+      transform: translateY(0);
+    }
   </style>
 </head>
 <body>
   <div id="shape-bg" aria-hidden="true"></div>
   <div class="signin-wrapper">
     <div class="side-card signin-card">
-      <div class="logo">EcoSort</div>
-      <h3>Sign in to EcoSort</h3>
+      <div class="logo">AI Garbage Sorting Assistant</div>
+      <h3>Sign in to AI Garbage Sorting Assistant</h3>
       <p class="muted">Access the garbage sorting assistant and map features.</p>
 
       <form id="signin-form">
@@ -73,7 +119,188 @@
       document.getElementById('skip').addEventListener('click', function(){ window.location.href = '/app'; });
       document.getElementById('forgot').addEventListener('click', function(){ alert('Password recovery is not configured in this demo.'); });
       document.getElementById('create').addEventListener('click', function(){ alert('Account creation is not configured in this demo.'); });
+
+      // Initialize floating background shapes
+      initInteractiveBackground({ shapeCount: 20, proximityPx: 150, subtle: true });
     });
+
+    function initInteractiveBackground(opts = {}) {
+      const bg = document.getElementById('shape-bg');
+      if (!bg) return;
+
+      // Reduced motion: render static shapes.
+      const reduce = window.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches;
+
+      const shapeCount = opts.shapeCount ?? 10;
+      const proximityPx = opts.proximityPx ?? 160;
+      const colors = [
+        'var(--green)',
+        'var(--blue)',
+        'var(--orange)',
+        'var(--red)',
+        'var(--lime)',
+        'var(--yellow)'
+      ];
+
+      bg.innerHTML = '';
+      const shapes = [];
+      const rand = (a, b) => a + Math.random() * (b - a);
+      const pick = (arr) => arr[Math.floor(Math.random() * arr.length)];
+
+      const resize = () => {
+        const w = window.innerWidth;
+        const h = window.innerHeight;
+        for (const s of shapes) {
+          s.x = Math.max(0, Math.min(w - s.size, s.x));
+          s.y = Math.max(0, Math.min(h - s.size, s.y));
+        }
+      };
+
+      for (let i = 0; i < shapeCount; i++) {
+        const size = rand(18, 72);
+        const type = pick(['circle', 'square', 'square', 'triangle']); // more squares/circles
+        const el = document.createElement('div');
+        el.className = `shape ${type}`;
+
+        const color = pick(colors);
+        // With more shapes, keep opacity lower to avoid visual clutter.
+        const opacity = rand(0.04, 0.12);
+        const baseScale = rand(0.9, 1.08);
+
+        const x = rand(0, Math.max(1, window.innerWidth - size));
+        const y = rand(0, Math.max(1, window.innerHeight - size));
+
+        const vx = rand(-0.35, 0.35);
+        const vy = rand(-0.25, 0.25);
+        const rot = rand(0, 360);
+        const baseRotSpeed = rand(-16, 16); // deg/sec
+        const rotSpeed = baseRotSpeed;
+
+        el.style.setProperty('--size', `${size}px`);
+        el.style.setProperty('--opacity', opacity.toFixed(3));
+        el.style.setProperty('--c', color);
+        el.style.setProperty('--x', `${x.toFixed(2)}px`);
+        el.style.setProperty('--y', `${y.toFixed(2)}px`);
+        el.style.setProperty('--r', `${rot.toFixed(2)}deg`);
+        el.style.setProperty('--s', baseScale.toFixed(3));
+
+        bg.appendChild(el);
+
+        shapes.push({
+          el,
+          type,
+          size,
+          x,
+          y,
+          vx,
+          vy,
+          baseVx: vx,
+          baseVy: vy,
+          rot,
+          rotSpeed,
+          baseRotSpeed,
+          baseScale,
+          opacity,
+        });
+      }
+
+      // Position mouse; start at center so shapes respond immediately after first move.
+      let mouseX = window.innerWidth / 2;
+      let mouseY = window.innerHeight / 2;
+      window.addEventListener(
+        'pointermove',
+        (e) => {
+          mouseX = e.clientX;
+          mouseY = e.clientY;
+        },
+        { passive: true }
+      );
+
+      if (reduce) {
+        window.addEventListener('resize', resize);
+        return;
+      }
+
+      let last = performance.now();
+      let rafId = 0;
+
+      const tick = (now) => {
+        const dt = Math.min(0.033, (now - last) / 1000); // clamp for stability
+        last = now;
+        const w = window.innerWidth;
+        const h = window.innerHeight;
+        const prox2 = proximityPx * proximityPx;
+
+        for (const s of shapes) {
+          // Drift
+          s.x += s.vx;
+          s.y += s.vy;
+
+          // Bounce (use top-left coords)
+          if (s.x <= 0) {
+            s.x = 0;
+            s.vx = Math.abs(s.vx);
+          } else if (s.x >= w - s.size) {
+            s.x = w - s.size;
+            s.vx = -Math.abs(s.vx);
+          }
+          if (s.y <= 0) {
+            s.y = 0;
+            s.vy = Math.abs(s.vy);
+          } else if (s.y >= h - s.size) {
+            s.y = h - s.size;
+            s.vy = -Math.abs(s.vy);
+          }
+
+          // Proximity interaction
+          const cx = s.x + s.size / 2;
+          const cy = s.y + s.size / 2;
+          const dx = cx - mouseX;
+          const dy = cy - mouseY;
+          const d2 = dx * dx + dy * dy;
+
+          let t = 0;
+          if (d2 < prox2) {
+            const d = Math.sqrt(d2) + 0.0001;
+            t = 1 - d / proximityPx; // 0..1
+
+            const nx = dx / d;
+            const ny = dy / d;
+
+            // Gentle attraction toward mouse.
+            const strength = 22; // tune for subtle motion
+            s.vx += -nx * t * strength * dt;
+            s.vy += -ny * t * strength * dt;
+
+            // Rotation and scale boost near cursor.
+            s.rotSpeed = s.baseRotSpeed * (1 + t) + (t * 24 * (dx > 0 ? 1 : -1)) * dt * 0.4;
+          } else {
+            // Relax back to baseline drift.
+            s.vx = s.vx * 0.985 + s.baseVx * 0.015;
+            s.vy = s.vy * 0.985 + s.baseVy * 0.015;
+            s.rotSpeed = s.rotSpeed * 0.98 + s.baseRotSpeed * 0.02;
+          }
+
+          s.rot += s.rotSpeed * dt;
+          const scale = s.baseScale * (1 + t * 0.10);
+          const opacity = Math.min(0.22, s.opacity + t * 0.12);
+
+          s.el.style.setProperty('--x', `${s.x.toFixed(2)}px`);
+          s.el.style.setProperty('--y', `${s.y.toFixed(2)}px`);
+          s.el.style.setProperty('--r', `${s.rot.toFixed(2)}deg`);
+          s.el.style.setProperty('--s', scale.toFixed(3));
+          s.el.style.setProperty('--opacity', opacity.toFixed(3));
+        }
+
+        rafId = requestAnimationFrame(tick);
+      };
+
+      window.addEventListener('resize', resize);
+      rafId = requestAnimationFrame(tick);
+
+      // If needed later: return a cleanup function.
+      return () => cancelAnimationFrame(rafId);
+    }
   </script>
 </body>
 </html>
