@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>EcoSort AI — Bin Map</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=Instrument+Sans:ital,wght@0,400;0,500;1,400&display=swap" rel="stylesheet" >
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<link rel="stylesheet" href="styles.css" >
+
+</head>
+<body>
+<div id="shape-bg" aria-hidden="true"></div>
+
+<!-- NAVBAR -->
+<nav>
+  <a href="ai%20garbage%20sort%20assistant.html" class="nav-logo"><span class="dot"></span> AI Garbage Sorting Assistant</a>
+  <div class="nav-links">
+    <a href="ai%20garbage%20sort%20assistant.html#sorter">Sorter</a>
+    <a href="ai%20garbage%20sort%20assistant.html#how">How It Works</a>
+    <a href="ai%20garbage%20sort%20assistant.html#bin-guide">Bin Guide</a>
+    <a href="ai%20garbage%20sort%20assistant.html#dashboard">Dashboard</a>
+    <a href="map.html" class="active">Map</a>
+  </div>
+  <a href="ai%20garbage%20sort%20assistant.html#sorter" class="nav-cta">Try Now →</a>
+</nav>
+
+<!-- MAP SECTION -->
+<section class="map-section">
+  <div class="section-label">Bin Locations</div>
+  <div class="section-title">Find Nearby Bins</div>
+  <div id="map"></div>
+</section>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="app.js"></script>
+<script src="map.js"></script>
+</body>
+</html>

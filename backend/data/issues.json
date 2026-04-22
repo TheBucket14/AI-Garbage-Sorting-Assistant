@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "issues": [
+    {
+      "id": "issue_001",
+      "binId": "bin_013",
+      "issueType": "damaged",
+      "description": "weewfhns",
+      "timestamp": "2024-01-01T00:00:00Z"
+    }
+  ]
+}

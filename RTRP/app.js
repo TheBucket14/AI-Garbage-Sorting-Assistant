@@ -1,3 +1,6 @@
+// ===== SESSION STATE =====
+let sessionId = 'session_' + Date.now();
+
 // ===== SORTING KNOWLEDGE BASE (fast local answers) =====
 const sortingDB = {
   // RECYCLING
@@ -151,6 +154,96 @@ async function sendMessage() {
   respondToItem(text);
 }
 
+async function submitImage() {
+  const input = document.getElementById('imageInput');
+  const file = input?.files?.[0];
+  if (!file) {
+    addMessage('Please choose an image first so I can identify the item.', 'bot', false);
+    return;
+  }
+
+  addMessage(`Uploaded image: ${escHtml(file.name)}`, 'user', false);
+  showTyping();
+
+  let result;
+  try {
+    result = await identifyImage(file);
+  } catch (err) {
+    result = null;
+  }
+
+  removeTyping();
+  if (!result) {
+    addMessage('I could not identify that image. Try a clearer photo, or describe the item in the box below.', 'bot', true);
+    return;
+  }
+
+  const itemLabel = result.item || file.name.replace(/\.[^/.]+$/, '');
+  updateScore(result.bin || 'General Waste');
+  const html = `
+    I looked at the image and identified it as <strong>${escHtml(itemLabel)}</strong>:
+    <div class="result-card">
+      <div class="bin-label ${normalizeResultForLabel(result.bin)}">${escHtml(result.icon || '🗑️')} ${escHtml(result.bin || 'General Waste')}</div>
+      <div class="tip">${escHtml(result.tip || 'Choose the bin recommendation above or type the item name for more detail.')}</div>
+    </div>
+  `;
+  addMessage(html, 'bot', true);
+  pushRecent(itemLabel, { bin: result.bin || 'General Waste' });
+}
+
+function previewSelectedImage() {
+  const preview = document.getElementById('imagePreview');
+  const input = document.getElementById('imageInput');
+  const file = input?.files?.[0];
+  if (!file) {
+    preview.innerHTML = 'Select an image to preview your item.';
+    return;
+  }
+  const url = URL.createObjectURL(file);
+  preview.innerHTML = `<img src="${escAttr(url)}" alt="Selected item preview"><span>${escHtml(file.name)}</span>`;
+}
+
+async function identifyImage(file) {
+  const form = new FormData();
+  form.append('image', file);
+  try {
+    const res = await fetch('/api/sort-image', { method: 'POST', body: form });
+    if (!res.ok) throw new Error('Image endpoint failed');
+    const data = await res.json();
+    return data;
+  } catch (err) {
+    return detectImageFromFilename(file.name);
+  }
+}
+
+function detectImageFromFilename(filename) {
+  const label = filename.replace(/\.[^/.]+$/, '').replace(/[_\-]+/g, ' ').trim();
+  if (!label) {
+    return {
+      bin: 'General Waste',
+      icon: '🗑️',
+      tip: 'I could not read the image name. Try typing the item or choosing a clearer image.',
+      item: filename,
+    };
+  }
+  const query = label.toLowerCase();
+  let result = sortingDB[query];
+  if (!result) {
+    const keys = Object.keys(sortingDB);
+    const matched = keys.find(k => query.includes(k) || k.includes(query));
+    if (matched) result = sortingDB[matched];
+  }
+  if (result) {
+    return { ...result, item: label };
+  }
+  return {
+    bin: 'General Waste',
+    icon: '🗑️',
+    tip: 'I could not identify the image definitively. Try typing the item name instead.',
+    item: label,
+  };
+}
+
 function quickAsk(item) {
   addMessage(item, 'user');
   showTyping();
@@ -208,42 +301,67 @@ function sourcesHtml(sources) {
 async function askServer(query) {
   showTyping();
   try {
-    const res = await fetch('/api/sort', {
+    // First, try the classification endpoint for item-specific queries
+    const classRes = await fetch('/api/sort', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ query, area: getArea() })
     });
-    const data = await res.json().catch(() => null);
+    const classData = await classRes.json().catch(() => null);
+
+    // If classification works and the response seems confident, use it
+    if (classRes.ok && classData && classData.bin) {
+      removeTyping();
+      setApiStatus(true, 'API reachable.');
+
+      const label = normalizeResultForLabel(classData.bin);
+      if (classData.bin) updateScore(classData.bin);
+
+      const binColorLine = classData.binColor ? `<div class="tip"><strong>Bin color:</strong> ${escHtml(classData.binColor)}</div>` : '';
+      const groundedLine = classData.grounded === false ? `<div class="tip"><em>Note:</em> This is generic guidance; local bin colors may differ.</div>` : '';
+
+      const html = `
+        Here's the result for <strong>${escHtml(query)}</strong>${classData.areaMatched ? ` in <strong>${escHtml(classData.areaMatched)}</strong>` : ''}:
+        <div class="result-card">
+          <div class="bin-label ${label}">${escHtml(classData.icon || '🗑️')} ${escHtml(classData.bin || 'Unknown')}</div>
+          ${binColorLine}
+          <div class="tip">${escHtml(classData.tip || '')}</div>
+          ${groundedLine}
+        </div>
+        ${sourcesHtml(classData.sources)}
+      `;
+      addMessage(html, 'bot', true);
+
+      pushRecent(query, classData);
+      if (classData.areaGuide) renderBinGuide(classData.areaGuide);
+      return;
+    }
+
+    // If classification didn't work well, fall back to general chat
+    removeTyping();
+    showTyping();
+
+    const chatRes = await fetch('/api/chat', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ 
+        message: query, 
+        sessionId: sessionId,
+        area: getArea() 
+      })
+    });
+    const chatData = await chatRes.json().catch(() => null);
     removeTyping();
 
-    if (!res.ok || !data) {
+    if (!chatRes.ok || !chatData) {
       setApiStatus(false, 'API error.');
-      addMessage(`I couldn't look that up right now. Try again in a moment, or describe the item's material.`, 'bot', true);
+      addMessage(`I couldn't answer that right now. Try again in a moment!`, 'bot', true);
       return;
     }
 
     setApiStatus(true, 'API reachable.');
+    addMessage(chatData.response, 'bot', true);
 
-    const label = normalizeResultForLabel(data.bin);
-    if (data.bin) updateScore(data.bin);
-
-    const binColorLine = data.binColor ? `<div class="tip"><strong>Bin color:</strong> ${escHtml(data.binColor)}</div>` : '';
-    const groundedLine = data.grounded === false ? `<div class="tip"><em>Note:</em> This is generic guidance; local bin colors may differ.</div>` : '';
-
-    const html = `
-      Here's the result for <strong>${escHtml(query)}</strong>${data.areaMatched ? ` in <strong>${escHtml(data.areaMatched)}</strong>` : ''}:
-      <div class="result-card">
-        <div class="bin-label ${label}">${escHtml(data.icon || '🗑️')} ${escHtml(data.bin || 'Unknown')}</div>
-        ${binColorLine}
-        <div class="tip">${escHtml(data.tip || '')}</div>
-        ${groundedLine}
-      </div>
-      ${sourcesHtml(data.sources)}
-    `;
-    addMessage(html, 'bot', true);
-
-    pushRecent(query, data);
-    if (data.areaGuide) renderBinGuide(data.areaGuide);
   } catch (e) {
     removeTyping();
     setApiStatus(false, 'API unreachable.');

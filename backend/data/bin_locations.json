@@ -1,0 +1,170 @@
+{
+  "version": 1,
+  "bins": [
+    {
+      "id": "bin_001",
+      "areaId": "hyderabad_telangana_in",
+      "name": "Charminar Recycling Center",
+      "types": ["recycling", "organics"],
+      "coordinates": { "lat": 17.3616, "lon": 78.4747 },
+      "address": "Near Charminar, Hyderabad, Telangana 500002",
+      "hours": "24/7",
+      "phone": "+91-40-2345-6789",
+      "notes": "Drop-off only, no curbside"
+    },
+    {
+      "id": "bin_002",
+      "areaId": "hyderabad_telangana_in",
+      "name": "Hitech City Compost Facility",
+      "types": ["organics"],
+      "coordinates": { "lat": 17.4435, "lon": 78.3772 },
+      "address": "Hitech City, Hyderabad, Telangana 500081",
+      "hours": "Mon-Fri 8AM-6PM",
+      "phone": "+91-40-4455-1234",
+      "notes": "Compost only, no food waste"
+    },
+    {
+      "id": "bin_003",
+      "areaId": "hyderabad_telangana_in",
+      "name": "Secunderabad Hazardous Waste Depot",
+      "types": ["hazardous"],
+      "coordinates": { "lat": 17.4399, "lon": 78.4983 },
+      "address": "Secunderabad, Hyderabad, Telangana 500003",
+      "hours": "Sat-Sun 10AM-4PM",
+      "phone": "+91-40-2789-4567",
+      "notes": "Batteries, paints, chemicals only"
+    },
+    {
+      "id": "bin_004",
+      "areaId": "hyderabad_telangana_in",
+      "name": "Banjara Hills General Waste Station",
+      "types": ["general"],
+      "coordinates": { "lat": 17.4126, "lon": 78.4346 },
+      "address": "Banjara Hills, Hyderabad, Telangana 500034",
+      "hours": "24/7",
+      "phone": "+91-40-2335-7890",
+      "notes": "General waste only"
+    },
+    {
+      "id": "bin_005",
+      "areaId": "hyderabad_telangana_in",
+      "name": "Jubilee Hills Community Recycling",
+      "types": ["recycling"],
+      "coordinates": { "lat": 17.3975, "lon": 78.4010 },
+      "address": "Road No. 45, Jubilee Hills, Hyderabad 500033",
+      "hours": "6AM-10PM",
+      "phone": "+91-40-4444-5555",
+      "notes": "Community-managed, accepts all recyclables"
+    },
+    {
+      "id": "bin_006",
+      "areaId": "hyderabad_telangana_in",
+      "name": "Gachibowli E-Waste Facility",
+      "types": ["hazardous"],
+      "coordinates": { "lat": 17.4459, "lon": 78.3892 },
+      "address": "ITPL Area, Gachibowli, Hyderabad 500032",
+      "hours": "Mon-Fri 9AM-5PM",
+      "phone": "+91-40-3333-2222",
+      "notes": "Electronics, computers, phones only"
+    },
+    {
+      "id": "bin_007",
+      "areaId": "hyderabad_telangana_in",
+      "name": "Kukatpally Organic Waste Composting",
+      "types": ["organics"],
+      "coordinates": { "lat": 17.4672, "lon": 78.3841 },
+      "address": "Kukatpally, Hyderabad 500072",
+      "hours": "7AM-6PM",
+      "phone": "+91-40-5555-4444",
+      "notes": "Kitchen waste and yard trimmings welcome"
+    },
+    {
+      "id": "bin_008",
+      "areaId": "hyderabad_telangana_in",
+      "name": "Mehdipatnam Mixed Waste Hub",
+      "types": ["recycling", "general"],
+      "coordinates": { "lat": 17.3816, "lon": 78.4816 },
+      "address": "Mehdipatnam, Hyderabad 500028",
+      "hours": "24/7",
+      "phone": "+91-40-6666-3333",
+      "notes": "Divided bins for recyclables and general waste"
+    },
+    {
+      "id": "bin_009",
+      "areaId": "hyderabad_telangana_in",
+      "name": "Narayanguda Industrial Waste Center",
+      "types": ["general", "hazardous"],
+      "coordinates": { "lat": 17.3698, "lon": 78.4565 },
+      "address": "Narayanguda, Hyderabad 500029",
+      "hours": "8AM-8PM",
+      "phone": "+91-40-7777-2222",
+      "notes": "Industrial waste, chemicals, metals"
+    },
+    {
+      "id": "bin_010",
+      "areaId": "hyderabad_telangana_in",
+      "name": "Ameerpet Market Recycling Point",
+      "types": ["recycling"],
+      "coordinates": { "lat": 17.4074, "lon": 78.4282 },
+      "address": "Ameerpet, Hyderabad 500016",
+      "hours": "6AM-9PM",
+      "phone": "+91-40-8888-1111",
+      "notes": "Near market, accepts plastic and paper waste"
+    },
+    {
+      "id": "bin_011",
+      "areaId": "hyderabad_telangana_in",
+      "name": "Nampally Green Station",
+      "types": ["organics", "recycling"],
+      "coordinates": { "lat": 17.3577, "lon": 78.4733 },
+      "address": "Nampally, Hyderabad 500001",
+      "hours": "7AM-7PM",
+      "phone": "+91-40-9999-0000",
+      "notes": "Community waste segregation hub"
+    },
+    {
+      "id": "bin_012",
+      "areaId": "hyderabad_telangana_in",
+      "name": "Madhapur Data Park Waste Hub",
+      "types": ["recycling", "hazardous"],
+      "coordinates": { "lat": 17.4420, "lon": 78.3805 },
+      "address": "Madhapur IT Corridor, Hyderabad 500081",
+      "hours": "24/7",
+      "phone": "+91-40-4411-2233",
+      "notes": "Serves IT professionals, e-waste specialists"
+    },
+    {
+      "id": "bin_013",
+      "areaId": "hyderabad_telangana_in",
+      "name": "Monda Market Organic Collection",
+      "types": ["organics"],
+      "coordinates": { "lat": 17.3827, "lon": 78.4722 },
+      "address": "Monda Market, Hyderabad 500003",
+      "hours": "Early morning 5AM-10AM",
+      "phone": "+91-40-5544-3322",
+      "notes": "Daily vegetable and fruit waste collection"
+    },
+    {
+      "id": "bin_014",
+      "areaId": "hyderabad_telangana_in",
+      "name": "Financial District Waste Management",
+      "types": ["recycling", "general"],
+      "coordinates": { "lat": 17.4338, "lon": 78.4126 },
+      "address": "Greenlands, Hyderabad 500082",
+      "hours": "8AM-6PM",
+      "phone": "+91-40-3388-5544",
+      "notes": "Corporate and office waste services"
+    },
+    {
+      "id": "bin_015",
+      "areaId": "hyderabad_telangana_in",
+      "name": "Khairtabad Riverside Cleanup Station",
+      "types": ["general", "organics"],
+      "coordinates": { "lat": 17.3750, "lon": 78.4680 },
+      "address": "Khairtabad, Hyderabad 500004",
+      "hours": "6AM-8PM",
+      "phone": "+91-40-2244-5566",
+      "notes": "Environmental cleanup focus"
+    }
+  ]
+}

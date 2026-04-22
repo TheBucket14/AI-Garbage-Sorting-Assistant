@@ -13,12 +13,13 @@
 
 <!-- NAVBAR -->
 <nav>
-  <a href="#" class="nav-logo"><span class="dot"></span> AI Garbage Sorting Assistant</a>
+  <a href="ai%20garbage%20sort%20assistant.html" class="nav-logo"><span class="dot"></span> AI Garbage Sorting Assistant</a>
   <div class="nav-links">
     <a href="#sorter" class="active">Sorter</a>
     <a href="#how">How It Works</a>
     <a href="#bin-guide">Bin Guide</a>
     <a href="#dashboard">Dashboard</a>
+    <a href="map.html">Map</a>
   </div>
   <a href="#sorter" class="nav-cta">Try Now →</a>
 </nav>
@@ -108,6 +109,14 @@
         <button class="chip" onclick="quickAsk('Cardboard box')">📦 Cardboard</button>
         <button class="chip" onclick="quickAsk('Newspaper')">📰 Newspaper</button>
         <button class="chip" onclick="quickAsk('Coffee grounds')">☕ Coffee grounds</button>
+      </div>
+
+      <div class="image-uploader">
+        <div class="upload-controls">
+          <input id="imageInput" type="file" accept="image/*" onchange="previewSelectedImage()" />
+          <button type="button" class="btn-secondary" onclick="submitImage()">Identify Image</button>
+        </div>
+        <div id="imagePreview" class="image-preview">Select an image to preview your item.</div>
       </div>
 
       <div class="input-row">
